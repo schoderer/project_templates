@@ -1,7 +1,8 @@
 [package]
 name = "rust"
-version = "0.0.1"
 edition = "2024"
+resolver = "2"
+version = "0.0.1"
 
 [lib]
 crate-type = ["cdylib"]
