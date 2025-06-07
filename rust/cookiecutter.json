@@ -1,4 +1,4 @@
 {
-  "project_name": "Cookiecutter Website Simple",
+  "project_name": "rust-template",
   "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '_') }}"
 }
