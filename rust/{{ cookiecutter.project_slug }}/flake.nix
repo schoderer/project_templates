@@ -21,7 +21,7 @@
             extensions = ["rust-analyzer" "rust-src"];
           };
           args = {
-            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config protobuf ];
+            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config ];
             buildInputs = with pkgs; [ openssl ];
           };
         in
