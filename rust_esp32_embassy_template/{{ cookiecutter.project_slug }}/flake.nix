@@ -37,7 +37,7 @@
               default = bin;
             };
           devShells.default = mkShell {
-            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config espflash ];
+            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config bacon espflash ];
             buildInputs = with pkgs; [];
           };
         }
