@@ -21,7 +21,7 @@
             extensions = ["rust-analyzer" "rust-src"];
           };
           args = {
-            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config bacon godot ];
+            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config bacon ];
             buildInputs = with pkgs; [ openssl ];
           };
         in
