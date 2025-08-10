@@ -2,6 +2,9 @@
 
 [ext_resource type="Texture2D" uid="uid://cd7ugbt7a2q8v" path="res://icon.svg" id="1_lcg44"]
 
-[node name="Player" type="Player"]
-position = Vector2(559, 301)
+[node name="Main" type="Node"]
+
+[node name="Player" type="Player" parent="."]
+speed = 8000.0
+position = Vector2(657, 356)
 texture = ExtResource("1_lcg44")
