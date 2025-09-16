@@ -17,7 +17,7 @@
           inherit system;
           overlays = [ goflake.overlay ];
         };
-        devDeps = with pkgs [
+        devDeps = with pkgs; [
           go
           gopls # go lang server
           delve # debugging 
