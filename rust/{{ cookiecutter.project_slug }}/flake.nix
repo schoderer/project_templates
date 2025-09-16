@@ -62,6 +62,7 @@
           nativeBuildInputs = args.nativeBuildInputs;
           buildInputs = args.buildInputs;
         };
-      });
+      }
+    );
 }
 
