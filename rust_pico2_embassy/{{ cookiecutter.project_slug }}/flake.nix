@@ -20,7 +20,10 @@
           };
           rustToolchain = pkgs.rust-bin.stable.latest.default.override {
             extensions = [ "rust-src" "rust-analyzer" ];
-            targets = [ "thumbv6m-none-eabi" ];
+            targets = [
+                "thumbv8m.main-none-eabihf"
+                "riscv32imac-unknown-none-elf"
+            ];
 
           };
         in
@@ -35,7 +38,11 @@
               default = bin;
             };
           devShells.default = mkShell {
-            nativeBuildInputs = with pkgs; [ rustToolchain pkg-config probe-rs-tools elf2uf2-rs flip-link];
+            nativeBuildInputs = with pkgs; [
+                rustToolchain
+                picotool # picio utils
+                bacon
+            ];
             buildInputs = with pkgs; [];
           };
         }

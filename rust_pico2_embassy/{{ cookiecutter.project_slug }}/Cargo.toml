@@ -1,0 +1,32 @@
+[package]
+name = "{{ cookiecutter.project_slug }}"
+version = "0.1.0"
+edition = "2024"
+resolver = "2"
+
+[[bin]]
+name = "{{ cookiecutter.project_slug }}"
+harness = false                          # do not use the built in cargo test harness -> resolve rust-analyzer errors
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true    # Symbols are nice and they don't increase the size on Flash
+opt-level = "z"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+
+[dependencies]
+cortex-m = "0.7.7"
+cortex-m-rt = "0.7.5"
+panic-probe = "1.0.0"
+defmt = "1.0.1"
+defmt-rtt = "1.1.0"
+
+# Embassy
+embassy-executor = { version ="0.9.1", features = ["arch-cortex-m", "executor-thread", "defmt"]}
+embassy-rp = {version="0.8.0" , features = ["time-driver", "rp235xa", "critical-section-impl", "defmt", "binary-info"]}
+embassy-time = "0.5.0"
