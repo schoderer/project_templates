@@ -4,6 +4,8 @@
 # You might want to make a similar file in your own repository if you are
 # writing programs for Raspberry Silicon microcontrollers.
 #
+[env]
+DEFMT_LOG = "trace" # Adjust the logging level
 
 [build]
 # Set the default target to match the Cortex-M33 in the RP2350
