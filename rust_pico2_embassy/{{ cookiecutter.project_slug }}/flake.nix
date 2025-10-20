@@ -41,6 +41,7 @@
             nativeBuildInputs = with pkgs; [
                 rustToolchain
                 picotool # picio utils
+                probe-rs-tools
                 bacon
             ];
             buildInputs = with pkgs; [];
