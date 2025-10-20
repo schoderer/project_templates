@@ -40,7 +40,7 @@
           devShells.default = mkShell {
             nativeBuildInputs = with pkgs; [
                 rustToolchain
-                picotool # picio utils
+                # picotool # picio utils
                 probe-rs-tools
                 bacon
             ];
