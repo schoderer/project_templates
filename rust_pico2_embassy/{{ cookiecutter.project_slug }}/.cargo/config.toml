@@ -39,7 +39,7 @@ rustflags = [
 #
 # Load an elf, skipping unchanged flash sectors, verify it, and execute it
 runner = "picotool load -u -v -x -t elf"
-
+# runner = "probe-rs run --chip RP235x --protocol swd"
 # This is the soft-float ABI for Arm mode.
 #
 # The FPU is disabled by default, and float function arguments use integer
@@ -89,3 +89,4 @@ rustflags = [
 #
 # Load an elf, skipping unchanged flash sectors, verify it, and execute it
 runner = "picotool load -u -v -x -t elf"
+# runner = "probe-rs run --chip RP235x --protocol swd"
