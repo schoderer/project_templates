@@ -2,5 +2,8 @@ default:
   just --list
 
 # trace, debug, info, warn, error
-run_with_level LEVEL:
+release_with_level LEVEL:
   DEFMT_LOG={{LEVEL}} cargo run --release
+
+debug_with_level LEVEL:
+  DEFMT_LOG={{LEVEL}} cargo run
