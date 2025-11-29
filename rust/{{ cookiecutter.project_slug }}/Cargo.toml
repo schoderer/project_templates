@@ -4,7 +4,13 @@ edition = "2024"
 resolver = "2"
 version = "0.0.1"
 
+
+[profile.perf]
+inherits = "release"
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+debug = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-
