@@ -27,8 +27,15 @@
         # Required Packages
         ##########
         args = {
-          nativeBuildInputs = with pkgs; [ rustToolchain bacon pkg-config ];
-          buildInputs = with pkgs; [ openssl ];
+          nativeBuildInputs = with pkgs; [
+            rustToolchain
+            pkg-config
+            bacon
+            linuxPackages_latest.perf
+          ];
+          buildInputs = with pkgs; [
+            openssl
+          ];
           inherit src;
         };
 
