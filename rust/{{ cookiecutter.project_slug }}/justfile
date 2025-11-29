@@ -6,7 +6,8 @@ build:
   nix build .#default
 
 perf:
-  perf record --call-graph dwarf cargo run --release # Debugsymbols need to be included
+  perf record --call-graph dwarf cargo run --profile perf # Debugsymbols need to be included
+perf-report:
   perf report -g
 
 build-docker:
