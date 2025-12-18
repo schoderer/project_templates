@@ -31,7 +31,7 @@
             rustToolchain
             pkg-config
             bacon
-            linuxPackages_latest.perf
+            perf
           ];
           buildInputs = with pkgs; [
             openssl
