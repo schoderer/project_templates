@@ -18,11 +18,11 @@
             inherit system overlays;
           };
           rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-            extensions = ["rust-analyzer" "rust-src"];
+            extensions = [ "rust-analyzer" "rust-src" "clippy" "rustfmt" ];
           };
           args = {
             nativeBuildInputs = with pkgs; [ rustToolchain pkg-config bacon ];
-            buildInputs = with pkgs; [ openssl ];
+            buildInputs = with pkgs; [ ];
           };
         in
         with pkgs;
@@ -30,6 +30,10 @@
           devShells.default = mkShell {
             nativeBuildInputs = args.nativeBuildInputs;
             buildInputs = args.buildInputs;
+            packages = [
+              pkgs.godot
+              # pkgs.godot-mono
+            ];
           };
         }
       );
