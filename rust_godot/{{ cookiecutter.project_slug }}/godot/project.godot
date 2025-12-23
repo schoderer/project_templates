@@ -10,11 +10,6 @@ config_version=5
 
 [application]
 
-config/name="learning_multiplayer"
-run/main_scene="res://player.tscn"
-config/features=PackedStringArray("4.4", "Forward Plus")
+config/name="{{ cookiecutter.project_slug }}"
+config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
-
-[dotnet]
-
-project/assembly_name="New Game Project"
