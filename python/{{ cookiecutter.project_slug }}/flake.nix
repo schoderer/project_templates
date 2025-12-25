@@ -15,7 +15,7 @@
         devDeps = with pkgs; [
           python
           uv
-          ruff
+          ty
         ];
       in
       { 
