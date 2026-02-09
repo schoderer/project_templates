@@ -31,7 +31,6 @@
             rustToolchain
             pkg-config
             bacon
-            perf
           ];
           buildInputs = with pkgs; [
             openssl
@@ -55,7 +54,7 @@
 
           copyToRoot = [ bin ];
           config = {
-            Cmd = [ "${bin}/bin/{{ cookiecutter.project_slug }}" ];
+            Entrypoint = [ "${bin}/bin/{{ cookiecutter.project_slug }}" ];
             User = "7337:7337"; # Run this not as root
             Env = [];
           };
