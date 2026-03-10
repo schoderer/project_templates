@@ -4,7 +4,9 @@
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
-use esp_hal::timer::timg::TimerGroup;
+use esp_hal::{interrupt::software::SoftwareInterruptControl, timer::timg::TimerGroup};
+
+esp_bootloader_esp_idf::esp_app_desc!();
 
 #[embassy_executor::task]
 async fn run() {
@@ -14,15 +16,16 @@ async fn run() {
     }
 }
 
-#[esp_hal_embassy::main]
+#[esp_rtos::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     esp_println::println!("Init!");
 
+    let sw_init = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    esp_hal_embassy::init(timg0.timer0);
+    esp_rtos::start(timg0.timer0, sw_init.software_interrupt0);
 
     spawner.spawn(run()).ok();
 
