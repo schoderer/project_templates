@@ -25,7 +25,7 @@
             targets = [ "riscv32imc-unknown-none-elf" ];
             {%- elif cookiecutter.esp_chip == "esp32c6" or cookiecutter.esp_chip == "esp32h2" -%}
             # For ESP32-C6 and ESP32-H2
-            targets = ["riscv32imac-unknown-none-elf"]
+            targets = ["riscv32imac-unknown-none-elf"];
             {%- endif -%}
           };
         in
