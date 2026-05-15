@@ -13,7 +13,7 @@
           inherit system;
         };
         devDeps = with pkgs; [
-          python
+          python3
           uv
           ty
         ];
