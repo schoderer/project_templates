@@ -27,7 +27,8 @@ async fn main(spawner: Spawner) {
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0, sw_init.software_interrupt0);
 
-    spawner.spawn(run()).ok();
+    let task = run().unwrap();
+    spawner.spawn(task);
 
     loop {
         esp_println::println!("Bing!");
