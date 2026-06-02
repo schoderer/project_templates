@@ -20,7 +20,7 @@ opt-level = 3
 
 [dependencies]
 # Basic ESP
-esp-hal = { version = "1.0.0", features = ["{{ cookiecutter.esp_chip }}", "log-04", "unstable"] }
+esp-hal = { version = "1.1.0", features = ["{{ cookiecutter.esp_chip }}", "log-04", "unstable"] }
 esp-backtrace = { version = "0.19.0", features = [
     "panic-handler",
     "println",
