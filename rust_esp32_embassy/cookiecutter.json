@@ -1,5 +1,5 @@
 {
     "project_name": "Cookiecutter Sample",
     "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '_') }}",
-    "esp_chip": ["esp32c3", "esp32c6", "esp32h2"]
+    "esp_chip": ["esp32c3", "esp32c6", "esp32h2", "esp32p4"]
   }
