@@ -1,2 +1,11 @@
 default:
   just --list
+
+run:
+  go run {{justfile_directory()}}
+
+build:
+  go build {{justfile_directory()}}/...
+
+test:
+  go test {{justfile_directory()}}/...

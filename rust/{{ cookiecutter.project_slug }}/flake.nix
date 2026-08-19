@@ -42,6 +42,12 @@
         bin = craneLib.buildPackage (args // { inherit cargoArtifacts; });
 
         ##########
+        # Tests — reuses the dependency artifacts, so only the crate is rebuilt
+        ##########
+        cargoTest = craneLib.cargoTest (args // { inherit cargoArtifacts; });
+{%- if cookiecutter.docker_image == "yes" %}
+
+        ##########
         # Dockerimage
         ##########
         # Example for adding a file to the image. Add this to the copyToRoot
@@ -59,10 +65,20 @@
             Env = [];
           };
         };
+{%- endif %}
       in with pkgs; {
         packages = {
-          inherit bin dockerImage;
+          inherit bin{% if cookiecutter.docker_image == "yes" %} dockerImage{% endif %};
           default = bin;
+        };
+        # `nix flake check` (and the nix-check CI workflow) builds the binary
+        # and runs `cargo test`. Add clippy/fmt gates here the same way:
+        #   clippy = craneLib.cargoClippy (args // { inherit cargoArtifacts;
+        #     cargoClippyExtraArgs = "--all-targets -- --deny warnings"; });
+        #   fmt = craneLib.cargoFmt { inherit src; };
+        checks = {
+          inherit bin;
+          test = cargoTest;
         };
         devShells.default = mkShell {
           nativeBuildInputs = args.nativeBuildInputs;

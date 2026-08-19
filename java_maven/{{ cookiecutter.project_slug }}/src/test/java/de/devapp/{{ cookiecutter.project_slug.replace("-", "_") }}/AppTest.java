@@ -1,4 +1,4 @@
-package de.devapp.{{ cookiecutter.project_slug }};
+package de.devapp.{{ cookiecutter.project_slug.replace("-", "_") }};
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
