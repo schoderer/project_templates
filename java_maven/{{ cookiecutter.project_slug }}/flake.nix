@@ -9,7 +9,7 @@
     let
       overlays = [
         (final: prev: rec {
-          jdk = prev."{{ cookiecutter.java_version }}";
+          jdk = prev."jdk{{ cookiecutter.java_version }}";
           maven = prev.maven.override { jdk_headless = jdk; };
         })
       ];

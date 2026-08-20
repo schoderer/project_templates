@@ -1,5 +1,5 @@
 {
-  description = "Flake for elixir_in_action";
+  description = "Flake for {{ cookiecutter.project_slug }}";
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
@@ -22,7 +22,7 @@
         ];
       in
       { 
-        devShell = pkgs.mkShell { 
+        devShells.default = pkgs.mkShell {
           buildInputs = devDeps; 
         }; 
       }

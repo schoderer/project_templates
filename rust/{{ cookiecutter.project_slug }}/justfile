@@ -9,9 +9,11 @@ perf:
   perf record --call-graph dwarf cargo run --profile perf # Debugsymbols need to be included
 perf-report:
   perf report -g
+{%- if cookiecutter.docker_image == "yes" %}
 
 build-docker:
   nix build .#dockerImage
 
 dive-inspect:
   gunzip --stdout result > /tmp/image.tar && dive docker-archive:///tmp/image.tar
+{%- endif %}
