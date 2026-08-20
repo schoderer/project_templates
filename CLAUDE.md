@@ -16,7 +16,7 @@ cookiecutter git@github.com:schoderer/project_templates.git --directory="rust"
 cookiecutter git@github.com:schoderer/project_templates.git --directory="rust_esp32_riscv_embassy/rust_esp32_embassy"
 ```
 
-Templates: `bevy`, `deno`, `elixir`, `gm-campaign`, `go`, `godot`, `java_maven`, `python`, `rust`,
+Templates: `bevy`, `deno`, `elixir`, `elm`, `gm-campaign`, `go`, `godot`, `java_maven`, `python`, `rust`,
 `rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`.
 
 ## Template anatomy
@@ -55,7 +55,7 @@ name, use `{{ cookiecutter.project_slug }}` / `{{ cookiecutter.project_name }}` 
   project-specific recipes below it (see `rust` for perf/docker recipes, `go` for run/build/test,
   `bevy` for `run-dynamic`, `rust_pico2_embassy` for `defmt` log-level recipes).
 - **Readme.md** is typically a single `# {{ cookiecutter.project_name }}` line.
-- **CI.** `deno`, `elixir`, `go`, `java_maven`, `python` and `rust` ship an identical
+- **CI.** `deno`, `elixir`, `elm`, `go`, `java_maven`, `python` and `rust` ship an identical
   `.github/workflows/nix-check.yml` running `nix flake check --print-build-logs` on every push/PR
   (`actions/checkout@v7` + `DeterminateSystems/determinate-nix-action`). Absent from `bevy`, `godot`,
   `rust_godot`, `gm-campaign` and the two embedded templates.
@@ -83,6 +83,12 @@ Docker image derivation and its `build-docker`/`dive-inspect` recipes in
   `cargoArtifacts`; `checks` exposes `bin` plus a `cargoTest` derivation that reuses those artifacts,
   so `nix flake check` (and hence CI) both builds and tests. A comment there shows where to hang
   `cargoClippy`/`cargoFmt` gates. Docker support is optional via `docker_image`.
+- `elm` — devShell-only (like `deno`): the flake just provides `elmPackages.elm`, `elm-language-server`,
+  `elm-format`, `elm-test`, `elm-review`, `elm-live` and `nodejs`, and all compiling/testing happens
+  through the justfile (`compile`, `release`, `dev`, `test`, `format`, `review`). Deliberately no
+  `packages.default`: a nix build of an Elm app needs the `elm.json` deps pinned via `elm2nix`
+  (`elm-srcs.nix` + `registry.dat` + `elmPackages.fetchElmDeps`), which has to be regenerated on
+  every dependency change.
 - `gm-campaign` — not code: a markdown scaffold (`campaign.md`, `players.md`, `threads.md`, `npcs/`,
   `factions/`, `locations/`, `sessions/`, `handouts/`) consumed by the `gm-prep`/`gm-recap`/
   `gm-review` skills. The `**System:**` line in `campaign.md` is read by those skills; the

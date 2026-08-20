@@ -1,0 +1,10 @@
+# direnv
+.direnv
+
+# elm
+elm-stuff/
+elm.js
+
+# Editor/IDE
+.idea/
+.vscode/

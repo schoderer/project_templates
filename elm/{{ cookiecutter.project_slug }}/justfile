@@ -1,0 +1,47 @@
+default:
+  just --list
+
+
+# Compile the app for development (unoptimised, with the time-travelling debugger)
+compile:
+  elm make src/Main.elm --debug --output=elm.js
+
+# Compile the app optimised for production
+release:
+  elm make src/Main.elm --optimize --output=elm.js
+
+# Serve the app on http://localhost:8000 and recompile on every change
+dev:
+  elm-live src/Main.elm --dir=. --open --pushstate -- --debug --output=elm.js
+
+# Run the test suite
+test:
+  elm-test
+
+# Rerun the test suite on every change
+test-watch:
+  elm-test --watch
+
+# Format all sources in place
+format:
+  elm-format --yes src tests
+
+# Fail if anything is unformatted
+format-check:
+  elm-format --validate src tests
+
+# Lint with elm-review (run `elm-review init` once to create the review/ config)
+review:
+  elm-review
+
+# Apply the elm-review fixes that can be applied automatically
+review-fix:
+  elm-review --fix-all
+
+# Open the Elm REPL with the project dependencies available
+repl:
+  elm repl
+
+# Remove all build artefacts
+clean:
+  rm -rf elm-stuff elm.js
