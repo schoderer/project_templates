@@ -1,19 +1,67 @@
 [package]
-name = "bevy_template"
+name = "{{ cookiecutter.project_slug }}"
 edition = "2024"
 resolver = "3"
 version = "0.0.1"
 
+# ---------------------------------------------------------------------------
+# Features
+#
+# `dev` is what you compile with all day (`just run`, `just check`, bacon).
+# Keep it out of `default` so release builds and CI never pick it up, but do
+# use it consistently -- switching feature sets forces cargo to rebuild the
+# whole dependency graph.
+# ---------------------------------------------------------------------------
+[features]
+default = []
+dev = [
+  "bevy/dynamic_linking",  # link Bevy as one .so: turns ~10s relinks into ~1s
+  "bevy/bevy_dev_tools",   # fps overlay, ui debug, state inspection
+  "bevy/file_watcher",     # reload assets from disk without restarting
+]
+# `just hotpatch` -- edit system bodies while the game keeps running.
+hotpatch = ["dev", "bevy/hotpatching"]
+
+[dependencies]
+{%- if cookiecutter.bevy_profile == "2d" %}
+# 2D only: drops the whole PBR / glTF / animation / 3D mesh stack.
+bevy = { version = "0.19.0", default-features = false, features = ["2d", "ui", "audio"] }
+{%- elif cookiecutter.bevy_profile == "3d" %}
+# 3D only: drops the 2D render stack.
+bevy = { version = "0.19.0", default-features = false, features = ["3d", "ui", "audio"] }
+{%- else %}
+# Everything. If this project turns out to be 2D-only, switching to
+#   bevy = { version = "0.19.0", default-features = false, features = ["2d", "ui", "audio"] }
+# removes a large chunk of the dependency graph and the cold-build time with it.
+bevy = "0.19.0"
+{%- endif %}
+
+# ---------------------------------------------------------------------------
+# Profiles
+#
+# The dev profile is tuned for compile speed, not runtime speed:
+#   your crate  -> cranelift, low opt, minimal debug info  (recompiled constantly)
+#   dependencies -> LLVM at opt-level 3, no debug info     (compiled once, cached)
+# ---------------------------------------------------------------------------
 [profile.dev]
 opt-level = 1
+# Cranelift emits code much faster than LLVM. Requires the nightly component
+# pulled in by flake.nix and `[unstable] codegen-backend` in .cargo/config.toml.
+# If a dependency ever fails to build under it, delete this line.
+codegen-backend = "cranelift"
+# Full debuginfo for a Bevy binary is hundreds of MB and has to be written and
+# linked on *every* rebuild. Line tables still give readable backtraces.
+debug = "line-tables-only"
+# Leave debuginfo in the object files instead of copying it into the binary.
+split-debuginfo = "unpacked"
 
 [profile.dev.package."*"]
 opt-level = 3
+codegen-backend = "llvm"
+# Dependencies carry the bulk of the debuginfo cost. Set this back to `true`
+# for the one crate you need to step through in a debugger.
+debug = false
 
 [profile.release]
 codegen-units = 1
 lto = "thin"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[dependencies]
-bevy = "0.19.0"

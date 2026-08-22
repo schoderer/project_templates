@@ -1,7 +1,29 @@
-# for Windows
-[target.x86_64-pc-windows-msvc]
-linker = "rust-lld.exe"
+# ---------------------------------------------------------------------------
+# Compile-speed configuration. Everything here needs the nightly toolchain
+# that flake.nix pins.
+# ---------------------------------------------------------------------------
+
+[unstable]
+# Enables the per-profile `codegen-backend` key used in Cargo.toml.
+codegen-backend = true
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=mold", "-Zshare-generics=y"]
+rustflags = [
+  "-C", "link-arg=-fuse-ld=mold",  # mold links a Bevy binary in well under a second
+  "-Zshare-generics=y",            # reuse monomorphised generics instead of re-emitting them
+  "-Zthreads=8",                   # parallel rustc frontend
+]
+
+[target.aarch64-unknown-linux-gnu]
+linker = "clang"
+rustflags = [
+  "-C", "link-arg=-fuse-ld=mold",
+  "-Zshare-generics=y",
+  "-Zthreads=8",
+]
+
+# for Windows
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
+rustflags = ["-Zshare-generics=n", "-Zthreads=8"]
