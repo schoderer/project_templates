@@ -17,20 +17,18 @@
 
         # Configure the rust toolchain.
         #
-        # Nightly is required by .cargo/config.toml (-Zshare-generics, -Zthreads,
-        # the cranelift codegen backend). `selectLatestNightlyWith` picks the most
-        # recent nightly that actually ships every component below -- plain
-        # `nightly.latest` breaks whenever one of them is missing for a day.
-        rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
-          toolchain.default.override {
-            extensions = [
-              "rust-analyzer"
-              "rust-src"
-              "clippy"
-              "rustfmt"
-              "rustc-codegen-cranelift-preview"
-            ];
-          });
+        # Stable. Nothing in this repo needs nightly: .cargo/config.toml and the
+        # profiles in Cargo.toml only use flags that are stable. Pin an exact
+        # release with `pkgs.rust-bin.stable."<version>".default` if you want the
+        # toolchain to stop moving when nixpkgs updates.
+        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+          extensions = [
+            "rust-analyzer"
+            "rust-src"
+            "clippy"
+            "rustfmt"
+          ];
+        };
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
         src = craneLib.cleanCargoSource ./.;
