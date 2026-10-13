@@ -1,0 +1,28 @@
+{
+  "project_name": "My Platform",
+  "project_slug": "{{ cookiecutter.project_name | lower | replace(' ', '-') | replace('_', '-') }}",
+  "project_description": "Services and tools of {{ cookiecutter.project_name }}",
+  "nixpkgs_branch": "nixos-unstable",
+  "systems": ["x86_64-linux,aarch64-linux", "x86_64-linux", "aarch64-linux"],
+  "include_github_ci": true,
+  "init_git": true,
+  "lock_flake": true,
+
+  "_copy_without_render": ["justfile"],
+
+  "__prompts__": {
+    "project_name": "Project name (human readable)",
+    "project_slug": "Directory / repository name (kebab-case)",
+    "project_description": "One-line description (flake description, README)",
+    "nixpkgs_branch": "nixpkgs branch to pin, e.g. nixos-unstable or nixos-26.05",
+    "systems": {
+      "__prompt__": "Systems to build for (docker images need Linux)",
+      "x86_64-linux,aarch64-linux": "x86_64 + aarch64 Linux",
+      "x86_64-linux": "x86_64 Linux only",
+      "aarch64-linux": "aarch64 Linux only"
+    },
+    "include_github_ci": "Add the GitHub Actions workflow?",
+    "init_git": "Run git init and stage the files? (nix flakes only see tracked files)",
+    "lock_flake": "Create flake.lock now? (needs nix on PATH)"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "__NAME__",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "__NAME__": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.js"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test \"dist/**/*.test.js\"",
+    "check": "biome check ."
+  },
+  "devDependencies": {
+    "@types/node": "^24"
+  }
+}
