@@ -10,9 +10,10 @@ a new platform (see README.md).
 - `{{cookiecutter.project_slug}}/`: the generated monorepo. Its own CLAUDE.md
   and README.md document the monorepo itself (contract, commands, layout).
 - `{{cookiecutter.project_slug}}/templates/<services|tools>/<lang>/`: project
-  skeletons for rust, python, go, typescript and generic. Each is a complete
-  project (`flake.nix` wrapper, `nix/default.nix` with all build logic,
-  sources, tests, README, `.envrc`, `.gitignore`, optional `scaffold.sh`).
+  skeletons for rust, python, go, typescript and generic, plus java_maven
+  (services only). Each is a complete project (`flake.nix` wrapper,
+  `nix/default.nix` with all build logic, sources, tests, README, `.envrc`,
+  `.gitignore`, optional `scaffold.sh`).
 - `scripts/test-template.sh`: end-to-end self-test.
 
 ## Rules

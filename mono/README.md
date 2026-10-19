@@ -5,7 +5,8 @@ whose root flake (flake-parts) auto-discovers every project in `services/`
 (binary + docker image) and `tools/` (binary), with
 
 - language templates for services and tools: Rust, Python, Go, TypeScript and
-  a generic one for any other language (`just new-service <lang> <name>`),
+  a generic one for any other language, plus Java (Maven) for services
+  (`just new-service <lang> <name>`),
 - one-command build, check, format and local run of everything
   (`just build`, `just docker`, `just check`, `just fmt`, `just up`),
 - a single pinned nixpkgs for all projects, direnv, GitHub Actions CI,
@@ -74,4 +75,4 @@ template, and runs `nix fmt` (must not change anything), `sync-locks --check`,
 standalone project flake and every tool binary. `--docker` additionally runs
 all services with `just up` and probes `/health` on each port. Run it after
 every change to the template; the first run takes a while (toolchains for
-five languages).
+six languages).

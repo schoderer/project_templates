@@ -37,7 +37,8 @@ services=()
 for kind in services tools; do
   for dir in templates/"$kind"/*/; do
     lang=$(basename "$dir")
-    if [[ $kind == services ]]; then name="svc-$lang"; services+=("$name"); else name="cli-$lang"; fi
+    # Project names are kebab-case; language names may contain `_` (java_maven).
+    if [[ $kind == services ]]; then name="svc-${lang//_/-}"; services+=("$name"); else name="cli-${lang//_/-}"; fi
     step "scaffolding $kind/$name from templates/$kind/$lang"
     "${nix[@]}" run ".#new-${kind%s}" -- "$lang" "$name"
   done

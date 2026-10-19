@@ -14,9 +14,11 @@ what matters when changing the repo.
 - `nix/compose.nix`: `packages.compose`, `apps.up`/`apps.down`; shared
   infrastructure (databases, ...) goes into `infrastructure` there.
 - `nix/apps.nix`: `new-service`, `new-tool` (scaffolder), `sync-locks`, `docker-load`.
-- `nix/treefmt.nix`: `nix fmt` (nixfmt, rustfmt, ruff, gofmt, biome, shellcheck).
+- `nix/treefmt.nix`: `nix fmt` (nixfmt, rustfmt, ruff, gofmt, google-java-format,
+  biome, shellcheck).
 - `services/<name>/`, `tools/<name>/`: projects; `templates/<kind>/<lang>/`:
-  skeletons (rust, python, go, typescript, generic); `documents/`: docs + ADRs.
+  skeletons (rust, python, go, typescript, generic; java_maven for services
+  only); `documents/`: docs + ADRs.
 
 ## Project contract
 
@@ -45,7 +47,8 @@ exit on SIGTERM, image `<name>:<version>` running as `nobody`,
 - Dependencies: Python from nixpkgs (`runtimeDeps` in `nix/default.nix` +
   `pyproject.toml`); TypeScript via `npm install` (lock read by `importNpmLock`,
   `tsc`/`biome` come from nixpkgs); Go needs `vendorHash` updated once go.sum
-  exists; Rust via Cargo.lock (crane).
+  exists; Java via `pom.xml` + `mvnHash` (set at scaffolding, update after
+  dependency or plugin changes); Rust via Cargo.lock (crane).
 - When adding a language template, also add its formatter to `nix/treefmt.nix`.
 
 ## Verify

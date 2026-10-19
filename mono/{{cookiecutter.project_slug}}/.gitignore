@@ -3,7 +3,7 @@ result
 result-*
 .direnv/
 
-# Rust
+# Rust, Java (Maven)
 target/
 
 # Python

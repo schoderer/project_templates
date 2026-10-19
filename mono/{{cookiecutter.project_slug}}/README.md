@@ -4,8 +4,8 @@
 
 A Nix monorepo: one root flake orchestrates many independent projects, each
 with its own flake, tooling, builds and checks. Services and tools can be
-written in any language; templates exist for Rust, Python, Go, TypeScript and
-a generic starting point for everything else.
+written in any language; templates exist for Rust, Python, Go, TypeScript,
+Java (Maven, services only) and a generic starting point for everything else.
 
 ```
 .
@@ -16,7 +16,7 @@ a generic starting point for everything else.
 ├── services/          deployable projects: binary + docker image
 ├── tools/             CLI tools: binary only
 └── templates/         skeletons for new projects, one per kind and language
-    ├── services/{rust,python,go,typescript,generic}/
+    ├── services/{rust,python,go,typescript,java_maven,generic}/
     └── tools/{rust,python,go,typescript,generic}/
 ```
 
@@ -51,6 +51,7 @@ port for local runs when it is created (8081, 8082, ...); it is stored in its
 | `python`     | FastAPI + uvicorn               | click                   | `buildPythonApplication`         |
 | `go`         | `net/http`                      | `flag`                  | `buildGoModule`                  |
 | `typescript` | `node:http`                     | `node:util` parseArgs   | `buildNpmPackage` + `importNpmLock` |
+| `java_maven` | `com.sun.net.httpserver`        | (none yet)              | `maven.buildMavenPackage`, jlink'ed JRE |
 | `generic`    | static files (darkhttpd)        | bash script             | adapt `bin` to any language      |
 
 Every service serves `GET /health` on `$PORT` (8080 in the image), shuts down
@@ -65,7 +66,7 @@ commands. All of them have unit tests and linters wired into `nix flake check`.
 | `just docker [name]`         | `nix build .#docker` / `.#<name>-docker` | every service image → `result/<name>.tar.gz` |
 | `just check`                 | `nix flake check`                      | every project's checks + formatting          |
 | `just check-one <check>`     | `nix build .#checks.<system>.<check>`  | one check, e.g. `billing-api-test`           |
-| `just fmt`                   | `nix fmt`                              | format nix, rust, python, go, ts/json, shell |
+| `just fmt`                   | `nix fmt`                              | format nix, rust, python, go, java, ts/json, shell |
 | `just run <name> <args>`     | `nix run .#<name> -- <args>`           | run one project                              |
 | `just dev [name]`            | `nix develop [.#<name>]`               | shell with all tooling, or one project's     |
 | `just up [args]` / `just down` | `nix run .#up` / `.#down`            | run every service with docker compose        |
