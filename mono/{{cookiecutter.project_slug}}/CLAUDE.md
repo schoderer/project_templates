@@ -14,8 +14,9 @@ what matters when changing the repo.
 - `nix/compose.nix`: `packages.compose`, `apps.up`/`apps.down`; shared
   infrastructure (databases, ...) goes into `infrastructure` there.
 - `nix/apps.nix`: `new-service`, `new-tool` (scaffolder), `sync-locks`, `docker-load`.
-- `nix/treefmt.nix`: `nix fmt` (nixfmt, rustfmt, ruff, gofmt, google-java-format,
-  biome, shellcheck).
+- `nix/treefmt.nix`: `nix fmt` (nixfmt, shellcheck always; rustfmt, ruff, gofmt,
+  google-java-format, biome only when a project uses that language, detected
+  by `languages` in `nix/lib.nix`). `templates/` is excluded.
 - `services/<name>/`, `tools/<name>/`: projects; `templates/<kind>/<lang>/`:
   skeletons (rust, python, go, typescript, generic; java_maven for services
   only); `documents/`: docs + ADRs.
@@ -49,7 +50,10 @@ exit on SIGTERM, image `<name>:<version>` running as `nobody`,
   `tsc`/`biome` come from nixpkgs); Go needs `vendorHash` updated once go.sum
   exists; Java via `pom.xml` + `mvnHash` (set at scaffolding, update after
   dependency or plugin changes); Rust via Cargo.lock (crane).
-- When adding a language template, also add its formatter to `nix/treefmt.nix`.
+- When adding a language template, also add its marker file to `languages`
+  in `nix/lib.nix` and its formatter (enabled via `used.<lang>`) to
+  `nix/treefmt.nix`. Never enable a language formatter unconditionally: the
+  root dev shell would then download that toolchain for everyone.
 
 ## Verify
 

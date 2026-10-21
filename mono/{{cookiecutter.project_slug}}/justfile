@@ -28,7 +28,7 @@ check:
 check-one name:
     nix build {{ flags }} .#checks.$(nix eval --raw --impure --expr builtins.currentSystem).{{ name }}
 
-# Format nix, rust and python files (treefmt: nixfmt, rustfmt, ruff)
+# Format nix and shell files plus every language used by a project (treefmt)
 fmt:
     nix fmt
 

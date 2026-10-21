@@ -32,6 +32,14 @@ let
     && !(lib.hasPrefix "_" name)
     && builtins.pathExists (dir + "/${name}/nix/default.nix");
 
+  # Names of the project directories in `dir` (none if `dir` does not exist).
+  projectNames =
+    dir:
+    let
+      entries = if builtins.pathExists dir then builtins.readDir dir else { };
+    in
+    builtins.attrNames (lib.filterAttrs (isProject dir) entries);
+
   # Fail evaluation early with a message that points at the offending file.
   validate =
     {
@@ -73,11 +81,29 @@ in
       requireDocker,
       args,
     }:
-    let
-      entries = if builtins.pathExists dir then builtins.readDir dir else { };
-      names = builtins.attrNames (lib.filterAttrs (isProject dir) entries);
-    in
-    lib.genAttrs names (
+    lib.genAttrs (projectNames dir) (
       name: validate { inherit kind requireDocker; } name (import (dir + "/${name}/nix") args)
     );
+
+  # Which languages the projects in `dirs` use, detected by a marker file in
+  # each project root. Only reads directories (no project is imported), so
+  # nix/treefmt.nix can use it to enable just the formatters that are needed.
+  #
+  #   languages { dirs = [ ../services ../tools ]; }
+  #   => { rust = true; go = false; java = false; python = true; typescript = false; }
+  languages =
+    { dirs }:
+    let
+      markers = {
+        rust = "Cargo.toml";
+        go = "go.mod";
+        java = "pom.xml";
+        python = "pyproject.toml";
+        typescript = "package.json";
+      };
+      projectDirs = lib.concatMap (dir: map (name: dir + "/${name}") (projectNames dir)) dirs;
+    in
+    lib.mapAttrs (
+      _: marker: lib.any (project: builtins.pathExists (project + "/${marker}")) projectDirs
+    ) markers;
 }

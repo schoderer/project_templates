@@ -66,7 +66,7 @@ commands. All of them have unit tests and linters wired into `nix flake check`.
 | `just docker [name]`         | `nix build .#docker` / `.#<name>-docker` | every service image → `result/<name>.tar.gz` |
 | `just check`                 | `nix flake check`                      | every project's checks + formatting          |
 | `just check-one <check>`     | `nix build .#checks.<system>.<check>`  | one check, e.g. `billing-api-test`           |
-| `just fmt`                   | `nix fmt`                              | format nix, rust, python, go, java, ts/json, shell |
+| `just fmt`                   | `nix fmt`                              | format nix, shell + the languages in use      |
 | `just run <name> <args>`     | `nix run .#<name> -- <args>`           | run one project                              |
 | `just dev [name]`            | `nix develop [.#<name>]`               | shell with all tooling, or one project's     |
 | `just up [args]` / `just down` | `nix run .#up` / `.#down`            | run every service with docker compose        |
@@ -120,7 +120,9 @@ for the contract details.
    `__PORT__`; the scaffolder replaces them in file names and contents.
 2. Optional `scaffold.sh`: runs once in the new project's dev shell (e.g. to
    generate a lock file) and is deleted afterwards.
-3. Add the language's formatter to `nix/treefmt.nix`.
+3. Add the language's marker file to `languages` in `nix/lib.nix` and its
+   formatter to `nix/treefmt.nix`, enabled only when that language is used
+   (so the root dev shell does not pull in unused toolchains).
 4. Scaffold a throwaway project and run `just ci` before committing.
 
 ## CI

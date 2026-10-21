@@ -28,9 +28,13 @@ a new platform (see README.md).
   same tool commands (`greet [NAME] [--shout]`, `version`), tests wired into
   `checks` or the build.
 - Every `.sh` and `.envrc` file needs a `# shellcheck shell=bash` line
-  (treefmt runs shellcheck); templates must already be formatted.
-- A new language template also needs its formatter in
-  `{{cookiecutter.project_slug}}/nix/treefmt.nix` and a row in the READMEs.
+  (treefmt runs shellcheck); templates must already be formatted (treefmt
+  skips `templates/`; the self-test formats the scaffolded copies).
+- A new language template also needs a marker file in `languages`
+  (`{{cookiecutter.project_slug}}/nix/lib.nix`), its formatter in
+  `{{cookiecutter.project_slug}}/nix/treefmt.nix` (enabled only via
+  `used.<lang>`, so unused toolchains are not downloaded) and a row in the
+  READMEs.
 - Keep both CLAUDE.md files and the READMEs in line with behaviour changes.
 
 ## Verify
