@@ -1,0 +1,8 @@
+{
+  "project_name": "python-ai-template",
+  "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '_') }}",
+  "rocm_image": "docker.io/rocm/pytorch:rocm10.2.0_ubuntu26.04_py3.14_pytorch_release_2.15.0",
+  "__prompts__": {
+    "rocm_image": "rocm/pytorch image (its py3.X must match python314 in flake.nix and requires-python)"
+  }
+}

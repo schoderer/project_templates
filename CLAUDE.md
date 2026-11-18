@@ -16,8 +16,8 @@ cookiecutter git@github.com:schoderer/project_templates.git --directory="rust"
 cookiecutter git@github.com:schoderer/project_templates.git --directory="rust_esp32_riscv_embassy/rust_esp32_embassy"
 ```
 
-Templates: `bevy`, `deno`, `elixir`, `elm`, `gm-campaign`, `go`, `godot`, `java_maven`, `node`, `python`, `rust`,
-`rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`.
+Templates: `bevy`, `deno`, `elixir`, `elm`, `gm-campaign`, `go`, `godot`, `java_maven`, `node`, `python`, `python_ai`,
+`rust`, `rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`.
 
 ## Template anatomy
 
@@ -37,6 +37,8 @@ Extra variables in use:
 
 - `java_version` (`java_maven`, default `jdk23`)
 - `esp_chip` (`rust_esp32_riscv_embassy`) — a JSON list, which cookiecutter turns into a choice prompt
+- `rocm_image` (`python_ai`) — the `rocm/pytorch` base image; its `py3.X` must match `python314`
+  in the flake and `requires-python`
 - `docker_image` (`rust`) — `["yes", "no"]` choice gating the Docker parts of `flake.nix`/`justfile`
 - `_copy_without_render` (`go`, `rust_pico2_embassy`) — see the Jinja pitfall below
 
@@ -55,7 +57,7 @@ name, use `{{ cookiecutter.project_slug }}` / `{{ cookiecutter.project_name }}` 
   project-specific recipes below it (see `rust` for perf/docker recipes, `go` for run/build/test,
   `bevy` for `run-dynamic`, `rust_pico2_embassy` for `defmt` log-level recipes).
 - **Readme.md** is typically a single `# {{ cookiecutter.project_name }}` line.
-- **CI.** `deno`, `elixir`, `elm`, `go`, `java_maven`, `node`, `python` and `rust` ship an identical
+- **CI.** `deno`, `elixir`, `elm`, `go`, `java_maven`, `node`, `python`, `python_ai` and `rust` ship an identical
   `.github/workflows/nix-check.yml` running `nix flake check --print-build-logs` on every push/PR
   (`actions/checkout@v7` + `DeterminateSystems/determinate-nix-action`). Absent from `bevy`, `godot`,
   `rust_godot`, `gm-campaign` and the two embedded templates.
@@ -93,6 +95,14 @@ Docker image derivation and its `build-docker`/`dive-inspect` recipes in
   (npm included) and `typescript-language-server`, and the framework is chosen after generation with
   `npm create vite@latest .`. Node is still required because Vite itself runs on it. Deliberately no
   `packages.default`, for the same lockfile-hash reason as `elm`.
+- `python_ai` — Hugging Face models on AMD GPUs. Host: devShell (python 3.14, uv, ty, ruff) with a
+  **CPU** torch from the PyTorch CPU index (`[tool.uv.sources]`, dev group) only for type checking.
+  Execution: `just run <script>` in a podman container built from `Containerfile` (`rocm/pytorch` + uv)
+  with the project mounted at `/workspace`. `container-entrypoint.sh` keeps the container venv on a
+  named volume (`UV_PROJECT_ENVIRONMENT`), exposes the image's ROCm torch through a `.pth` file (not
+  `--system-site-packages`, which misses torch when the image installs it into its own venv) and syncs
+  with `--no-install-package torch …` so PyPI torch never shadows it. The justfile is rendered but
+  avoids just's `{{ }}` (uses `set positional-arguments` + `$VAR`), so it needs no `_copy_without_render`.
 - `gm-campaign` — not code: a markdown scaffold (`campaign.md`, `players.md`, `threads.md`, `npcs/`,
   `factions/`, `locations/`, `sessions/`, `handouts/`) consumed by the `gm-prep`/`gm-recap`/
   `gm-review` skills. The `**System:**` line in `campaign.md` is read by those skills; the

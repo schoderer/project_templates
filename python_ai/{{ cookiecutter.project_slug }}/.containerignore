@@ -1,0 +1,3 @@
+# The project is mounted at runtime; the image only needs the entrypoint.
+*
+!container-entrypoint.sh

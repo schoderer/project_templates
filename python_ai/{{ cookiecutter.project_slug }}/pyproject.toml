@@ -1,0 +1,36 @@
+[project]
+name = "{{ cookiecutter.project_slug }}"
+version = "0.1.0"
+description = "Hugging Face models on AMD GPUs (ROCm)"
+readme = "Readme.md"
+# Must match the py3.X of the rocm/pytorch image in the Containerfile.
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "transformers",
+    "accelerate",
+    "huggingface-hub",
+    "pillow",
+    "soundfile",
+    "librosa",
+    "timm",
+]
+
+[dependency-groups]
+# torch is provided by the rocm/pytorch image inside the container (and skipped there via
+# --no-install-package). On the host a CPU build is installed so ty and editors resolve imports.
+dev = ["torch", "torchvision", "torchaudio"]
+
+[tool.uv]
+package = false
+# ROCm is Linux-only; keeps the lock small
+environments = ["sys_platform == 'linux'"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
