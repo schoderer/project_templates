@@ -10,6 +10,14 @@ from transformers import pipeline
 
 device = "cuda" if torch.cuda.is_available() else "cpu"  # "cuda" is the AMD GPU on ROCm
 
+if device == "cuda":
+    props = torch.cuda.get_device_properties(0)
+    print(
+        f"Running on GPU: {props.name} ({getattr(props, 'gcnArchName', '?').split(':')[0]})"
+    )
+else:
+    print("Running on CPU (no GPU visible to torch)")
+
 detector = pipeline("object-detection", model="facebook/detr-resnet-50", device=device)
 
 for obj in detector(sys.argv[1]):

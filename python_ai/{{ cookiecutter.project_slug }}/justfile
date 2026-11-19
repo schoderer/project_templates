@@ -1,4 +1,6 @@
 set positional-arguments
+# .env: per-project settings such as ROCR_VISIBLE_DEVICES and HF_TOKEN (see .env.example)
+set dotenv-load
 
 export IMAGE := "{{ cookiecutter.project_slug }}-rocm"
 export HF_CACHE := env_var_or_default("HF_HOME", env_var("HOME") / ".cache/huggingface")
@@ -22,9 +24,9 @@ exec *cmd:
 shell:
   @just _podman bash
 
-# Show the GPUs ROCm sees
+# Show all GPUs with their UUIDs (ignores ROCR_VISIBLE_DEVICES, so hidden ones are listed too)
 gpu-info:
-  @just _podman bash -c 'rocminfo | grep -E "Marketing Name|gfx" | sort -u; rocm-smi'
+  @ROCR_VISIBLE_DEVICES= just _podman bash scripts/gpu-info.sh
 
 # Drop the container venv (rebuilt on the next run)
 reset-venv:
@@ -43,7 +45,8 @@ fmt:
   ruff format .
   ruff check --fix .
 
-# Optional env: HSA_OVERRIDE_GFX_VERSION (unsupported GPUs), HIP_VISIBLE_DEVICES (pick a GPU), HF_TOKEN
+# Optional env (shell or .env): ROCR_VISIBLE_DEVICES (GPU UUIDs to use), HIP_VISIBLE_DEVICES,
+# HSA_OVERRIDE_GFX_VERSION (unsupported GPUs), HF_TOKEN
 [private]
 _podman *cmd:
   @mkdir -p "$HF_CACHE"
@@ -57,6 +60,7 @@ _podman *cmd:
     -v {{ cookiecutter.project_slug }}-uvcache:/opt/uv-cache \
     -v "$HF_CACHE":/root/.cache/huggingface:z \
     ${HSA_OVERRIDE_GFX_VERSION:+-e HSA_OVERRIDE_GFX_VERSION} \
+    ${ROCR_VISIBLE_DEVICES:+-e ROCR_VISIBLE_DEVICES} \
     ${HIP_VISIBLE_DEVICES:+-e HIP_VISIBLE_DEVICES} \
     ${HF_TOKEN:+-e HF_TOKEN} \
     "$IMAGE" "$@"
