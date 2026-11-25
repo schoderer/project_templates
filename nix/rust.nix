@@ -104,7 +104,6 @@
         inherit bin pname;
         docker = resolve docker;
         library = isLibrary;
-        where = "lib.rust.mkProject";
       };
     in
     {

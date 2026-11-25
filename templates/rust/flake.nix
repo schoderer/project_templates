@@ -3,9 +3,11 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    project-templates.url = "git+ssh://git@github.com/schoderer/project_templates";
-    # Build with this project's nixpkgs (locked in its flake.lock), not the lib's pin.
-    project-templates.inputs.nixpkgs.follows = "nixpkgs";
+    project-templates = {
+      url = "git+ssh://git@github.com/schoderer/project_templates";
+      # Build with this project's nixpkgs (locked in its flake.lock), not the lib's pin.
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =

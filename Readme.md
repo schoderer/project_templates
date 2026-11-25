@@ -9,6 +9,7 @@ reach every project with `nix flake update project-templates`.
 |----------|------------------------|----------------------------|
 | Rust     | `lib.rust.mkFlake`     | `templates.rust`           |
 | Go       | `lib.go.mkFlake`       | `templates.go`             |
+| Python   | `lib.python.mkFlake`   | `templates.python`         |
 | *others* | –                      | cookiecutter in `old/`, see [below](#cookiecutter-templates) |
 
 ## Access (private repo)
@@ -47,8 +48,9 @@ unstable, independent of this repo's `flake.lock`. Update only the lib with `nix
 ## Formatting (treefmt)
 
 Every template ships a `treefmt.toml`, which the project owns. The lib supplies the formatter programs:
-nixfmt and taplo for all projects, plus rustfmt (from the project's toolchain, so it matches `cargo fmt`) or
-gofmt (from the project's Go).
+nixfmt and taplo for all projects, plus rustfmt (from the project's toolchain, so it matches `cargo fmt`),
+gofmt (from the project's Go) or `ruff format`. In the Python template, taplo is configured to match the style
+`uv add` writes into `pyproject.toml`, so adding a dependency doesn't fail the format check.
 
 ```bash
 nix fmt           # format the project (also `treefmt` / `just fmt` in the devShell)
@@ -86,8 +88,7 @@ and `.gitignore`.
 Replace `src/main.rs` with `src/lib.rs` and remove `docker = { };` from `flake.nix`. A crate without
 `src/main.rs`, `src/bin/` or `[[bin]]` is detected as a library: it gets no packages (`nix build` fails with
 "does not provide attribute 'packages…default'"), no Docker image, and its build check is called
-`checks.build`. Tests, clippy and treefmt work as before. Setting `docker` on a library is an evaluation
-error. Override the detection with `library = true/false`. Workspaces always count as binaries.
+`checks.build`. Tests, clippy and treefmt work as before. `docker` is ignored for libraries. Override the detection with `library = true/false`. Workspaces always count as binaries.
 
 ### Existing Rust project
 
@@ -97,8 +98,10 @@ Add a `flake.nix` next to `Cargo.toml` (`Cargo.lock` must be committed):
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    project-templates.url = "git+ssh://git@github.com/schoderer/project_templates";
-    project-templates.inputs.nixpkgs.follows = "nixpkgs";
+    project-templates = {
+      url = "git+ssh://git@github.com/schoderer/project_templates";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { project-templates, ... }:
@@ -112,8 +115,10 @@ With options:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    project-templates.url = "git+ssh://git@github.com/schoderer/project_templates";
-    project-templates.inputs.nixpkgs.follows = "nixpkgs";
+    project-templates = {
+      url = "git+ssh://git@github.com/schoderer/project_templates";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { project-templates, ... }:
@@ -129,8 +134,10 @@ With options:
       docker = pkgs: {
         name = "ghcr.io/schoderer/my-app";
         tag = "0.1.0";
-        config.Env = [ "RUST_LOG=info" ];
-        config.ExposedPorts."8080/tcp" = { };
+        config = {
+          Env = [ "RUST_LOG=info" ];
+          ExposedPorts."8080/tcp" = { };
+        };
         copyToRoot = [ pkgs.cacert ];
       };
 
@@ -203,7 +210,7 @@ If you vendor dependencies (`go mod vendor`, committed `vendor/`), `vendorHash =
 Replace `main.go`/`main_test.go` with a non-main package, and in `flake.nix` remove `docker = { };` and add
 `library = true;`. Go needs the flag because detecting `package main` would mean parsing every `.go` file.
 Otherwise it behaves like Rust: no packages, no Docker image, the build/test check is `checks.build`, and
-setting `docker` is an evaluation error.
+`docker` is ignored.
 
 ### Existing Go project
 
@@ -213,8 +220,10 @@ Add a `flake.nix` next to `go.mod`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    project-templates.url = "git+ssh://git@github.com/schoderer/project_templates";
-    project-templates.inputs.nixpkgs.follows = "nixpkgs";
+    project-templates = {
+      url = "git+ssh://git@github.com/schoderer/project_templates";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { project-templates, ... }:
@@ -268,6 +277,109 @@ Add a `flake.nix` next to `go.mod`:
 `lib.go.mkProject { pkgs, src, … }` takes the same options for a single system and returns
 `{ packages, checks, devShell }`.
 
+## Python
+
+Built with [uv2nix] straight from `uv.lock`. uv already records every dependency's hash there, so unlike Go
+there is no hash to maintain in `flake.nix`. The devShell is a plain uv workflow with the Nix interpreter.
+
+### New project
+
+```bash
+nix flake new my-app -t git+ssh://git@github.com/schoderer/project_templates#python && cd my-app
+# rename `app`: pyproject.toml `name` + `[project.scripts]`, the src/app dir, the import in tests/
+uv lock                   # re-resolve under the new name
+direnv allow              # or: nix develop
+uv sync                   # .venv for your editor
+nix build                 # app           -> result/bin/<script>
+nix build .#dockerImage   # docker image  -> result (tar.gz), `docker load < result`
+nix flake check           # build + pytest + ruff check + ty + formatting
+just                      # list recipes
+```
+
+The template contains `pyproject.toml` (uv_build backend, `dev` group with pytest, ruff rules), `uv.lock`,
+`src/app/__init__.py`, `tests/test_app.py`, `flake.nix`, `treefmt.toml`, `.envrc`, `justfile` and `.gitignore`.
+
+### Dependencies
+
+`uv add <pkg>` (or `uv add --dev <pkg>` for the `dev` group). That updates `pyproject.toml` and `uv.lock`, and
+the next `nix build` uses them. Wheels are preferred (`sourcePreference = "wheel"`). A dependency that has to
+be built from source and needs native libraries gets them through `pythonOverrides`:
+
+```nix
+pythonOverrides = pkgs: final: prev: {
+  somepkg = prev.somepkg.overrideAttrs (old: {
+    nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.pkg-config ];
+  });
+};
+```
+
+### Turning it into a library
+
+Remove `[project.scripts]` from `pyproject.toml` and `docker = { };` from `flake.nix`. A project without
+scripts is detected as a library: no packages, no Docker image, and its build check (the venv) is called
+`checks.build`. Tests, ruff, ty and treefmt work as before. `docker` is ignored for libraries. Override the detection with `library = true/false`.
+
+### Existing Python project
+
+Needs a `uv.lock`, a `[build-system]` and, for an app, `[project.scripts]`:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    project-templates = {
+      url = "git+ssh://git@github.com/schoderer/project_templates";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { project-templates, ... }:
+    project-templates.lib.python.mkFlake {
+      src = ./.;
+      python = pkgs: pkgs.python313;   # must satisfy requires-python
+      typecheck = true;                # ty
+      docker = pkgs: {
+        config.ExposedPorts."8000/tcp" = { };
+        copyToRoot = [ pkgs.cacert ];
+      };
+    };
+}
+```
+
+### Outputs
+
+| Output                     | Content                                                     |
+|----------------------------|-------------------------------------------------------------|
+| `packages.default` / `bin` | the project's scripts only (`mkApplication` over the uv2nix venv); not for libraries |
+| `packages.dockerImage`     | `dockerTools.buildImage`, runs as user `7337:7337`, entrypoint = the script named like the project (else the first); not for libraries |
+| `checks.bin`               | the build (`checks.build`, the venv, for libraries)         |
+| `checks.test`              | `pytest` with all dependency groups installed               |
+| `checks.lint` / `checks.typecheck` | `ruff check` (on by default) / `ty check` against the test venv (`typecheck = true`) |
+| `checks.treefmt`           | formatting, when `treefmt.toml` exists                      |
+| `formatter`                | `nix fmt`: treefmt with ruff, nixfmt, taplo (+ `formatters`) |
+| `devShells.default`        | python, uv, ruff, ty, `treefmt`; `UV_PYTHON` points at the Nix python, downloads are off, and on Linux `LD_LIBRARY_PATH` covers manylinux wheels |
+
+### Options (`mkFlake` / `mkProject`)
+
+| Option              | Default                         | Meaning |
+|---------------------|---------------------------------|---------|
+| `src`               | required                        | project root with `pyproject.toml` and `uv.lock` |
+| `systems`           | x86_64/aarch64 linux, aarch64-darwin | `mkFlake` only |
+| `python`            | nixpkgs `python3`               | `pkgs: pkgs.python313`; must satisfy `requires-python` |
+| `sourcePreference`  | `"wheel"`                       | or `"sdist"` to build everything from source |
+| `pythonOverrides`   | none                            | `pkgs: final: prev: { … }`, an overlay on the uv2nix package set |
+| `library`           | auto-detected                   | `true`: no packages, no docker |
+| `docker`            | on for apps                     | same as Rust: `false`, `true`, or `{ name, tag, config, copyToRoot, entrypoint }` (or `pkgs: { … }`) |
+| `test`, `lint`, `typecheck` | `true`, `true`, `false` | pytest, ruff check, ty |
+| `extraChecks`       | `{ }`                           | attrset or `pkgs: attrset` |
+| `devPackages`       | `[ ]`                           | extra devShell tools; list or `pkgs: list` |
+| `formatters`        | `[ ]`                           | extra programs for `treefmt.toml`; list or `pkgs: list` |
+
+`lib.python.mkProject { pkgs, src, … }` takes the same options for a single system and returns
+`{ packages, checks, devShell, formatter }`.
+
+[uv2nix]: https://github.com/pyproject-nix/uv2nix
+
 ## Cookiecutter templates
 
 The previous cookiecutter templates live in `old/` and still work, but they aren't developed further:
@@ -279,5 +391,5 @@ cookiecutter git@github.com:schoderer/project_templates.git --directory="old/rus
 ```
 
 Available in `old/`: `bevy`, `deno`, `elixir`, `elm`, `empty`, `gm-campaign`, `godot`, `java_maven`, `mono`, `node`,
-`python`, `python_ai`, `go` and `rust` (both superseded by the flake templates above), `rust_esp32_riscv_embassy/rust_esp32_embassy`,
-`rust_godot`, `rust_pico2_embassy`.
+`python_ai`, `rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`, and `go`, `python`
+and `rust` (superseded by the flake templates above).

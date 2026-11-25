@@ -124,7 +124,6 @@
         inherit pkgs bin library;
         pname = pname';
         docker = resolve docker;
-        where = "lib.go.mkProject";
       };
     in
     {

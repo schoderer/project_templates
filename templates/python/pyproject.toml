@@ -1,0 +1,22 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "Readme.md"
+requires-python = ">=3.14"
+dependencies = []
+
+# A project without scripts is built as a library (no packages, no docker image).
+[project.scripts]
+app = "app:main"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, pyupgrade, bugbear
+select = ["E", "F", "I", "UP", "B"]

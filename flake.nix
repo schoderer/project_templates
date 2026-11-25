@@ -1,6 +1,6 @@
 # Library flake for project build logic, plus `nix flake init` templates.
 #
-#   nix flake init -t git+ssh://git@github.com/schoderer/project_templates#rust   (or #go)
+#   nix flake init -t git+ssh://git@github.com/schoderer/project_templates#rust   (or #go, #python)
 #   nix flake check   build + test every template via the lib
 #
 # Projects consume `lib.<lang>.mkFlake` (see templates/<lang>/flake.nix and Readme.md).
@@ -14,6 +14,27 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Python builds from uv.lock (uv2nix).
+    pyproject-nix = {
+      url = "github:pyproject-nix/pyproject.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    uv2nix = {
+      url = "github:pyproject-nix/uv2nix";
+      inputs = {
+        pyproject-nix.follows = "pyproject-nix";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
+    pyproject-build-systems = {
+      url = "github:pyproject-nix/build-system-pkgs";
+      inputs = {
+        pyproject-nix.follows = "pyproject-nix";
+        uv2nix.follows = "uv2nix";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
   };
 
   outputs =
@@ -22,6 +43,9 @@
       nixpkgs,
       crane,
       rust-overlay,
+      pyproject-nix,
+      uv2nix,
+      pyproject-build-systems,
     }:
     let
       inherit (nixpkgs) lib;
@@ -55,6 +79,7 @@
 
       rust = import ./nix/rust.nix { inherit crane rust-overlay; };
       go = import ./nix/go.nix { };
+      python = import ./nix/python.nix { inherit pyproject-nix uv2nix pyproject-build-systems; };
 
       # Self-test helper: a template's checks (+ docker image on Linux), prefixed.
       templateChecks =
@@ -67,11 +92,16 @@
         );
     in
     {
-      lib.rust = rust // {
-        mkFlake = mkFlakeFor rust.mkProject;
-      };
-      lib.go = go // {
-        mkFlake = mkFlakeFor go.mkProject;
+      lib = {
+        rust = rust // {
+          mkFlake = mkFlakeFor rust.mkProject;
+        };
+        go = go // {
+          mkFlake = mkFlakeFor go.mkProject;
+        };
+        python = python // {
+          mkFlake = mkFlakeFor python.mkProject;
+        };
       };
 
       templates = {
@@ -110,6 +140,26 @@
           '';
         };
 
+        python = {
+          path = ./templates/python;
+          description = "Python app: uv2nix build from uv.lock, pytest + ruff + ty checks, docker image, devShell";
+          welcomeText = ''
+            # Python project
+
+            Rename the project from `app` (pyproject.toml `name` + `[project.scripts]`,
+            the `src/app` directory, the import in tests/, Readme.md), then:
+
+                uv lock                  # re-resolve under the new name
+                direnv allow             # or: nix develop
+                uv sync                  # .venv for your editor
+                nix build                # app    -> result/bin/<script>
+                nix build .#dockerImage  # docker image (set `docker = false;` in flake.nix to drop it)
+                nix flake check          # build + pytest + ruff check + ty + formatting
+                just                     # list recipes
+
+            Dependencies: `uv add <pkg>`. Nix builds from uv.lock, so there is no hash to update.
+          '';
+        };
       };
 
       # Self-test: build every template through the lib.
@@ -128,6 +178,13 @@
             inherit pkgs;
             src = ./templates/go;
             lint = true;
+          }
+        )
+        // templateChecks pkgs "python" (
+          python.mkProject {
+            inherit pkgs;
+            src = ./templates/python;
+            typecheck = true;
           }
         )
       );

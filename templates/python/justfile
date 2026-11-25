@@ -1,0 +1,32 @@
+default:
+  just --list
+
+# Format everything per treefmt.toml
+fmt:
+  treefmt
+
+# Create/refresh .venv from uv.lock
+sync:
+  uv sync
+
+run *ARGS:
+  uv run app {{ARGS}}
+
+test:
+  uv run pytest
+
+lint:
+  ruff check
+
+typecheck:
+  ty check
+
+# Reproducible build -> result/bin/<script>
+build:
+  nix build .#default
+
+build-docker:
+  nix build .#dockerImage
+
+dive-inspect:
+  gunzip --stdout result > /tmp/image.tar && dive docker-archive:///tmp/image.tar

@@ -1,0 +1,19 @@
+# direnv / nix
+.direnv
+result*
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+
+# env file
+.env
+
+# Editor/IDE
+.idea/
+.vscode/

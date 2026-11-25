@@ -1,0 +1,31 @@
+# `nix fmt` (or `treefmt` in the devShell) formats the project;
+# `nix flake check` fails on unformatted files. The lib supplies ruff, nixfmt
+# and taplo; add `formatters = pkgs: [ … ];` in flake.nix for anything else.
+
+# Don't warn about files no formatter claims (justfile, .gitignore, …).
+on-unmatched = "debug"
+
+# Also skip the virtualenv outside git (git's walker already honours .gitignore).
+excludes = [".venv/**"]
+
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+
+[formatter.python]
+command = "ruff"
+options = ["format"]
+includes = ["*.py", "*.pyi"]
+
+[formatter.toml]
+command = "taplo"
+# Match the style `uv add`/`uv lock` write into pyproject.toml (multi-line
+# arrays, 4-space indent), so adding a dependency doesn't fail the format check.
+options = [
+    "format",
+    "--option",
+    "array_auto_collapse=false",
+    "--option",
+    "indent_string=    ",
+]
+includes = ["*.toml"]
