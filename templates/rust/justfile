@@ -1,6 +1,10 @@
 default:
   just --list
 
+# Format everything per treefmt.toml
+fmt:
+  treefmt
+
 
 build:
   nix build .#default

@@ -1,0 +1,43 @@
+# Docker image for a project binary, shared by nix/rust.nix and nix/go.nix.
+#
+#   docker = null | true  -> image with defaults (binaries only)
+#            false        -> no image
+#            { name, tag, config, copyToRoot, entrypoint }  -> image, overrides merged
+#
+# Returns { dockerImage = …; } or { }. Libraries have no binary, so asking for
+# an image there is an evaluation error instead of an image with a dead entrypoint.
+{
+  pkgs,
+  bin,
+  pname,
+  docker,
+  library,
+  where,
+}:
+let
+  wantsImage = docker != null && docker != false;
+  opts = {
+    name = "ghcr.io/schoderer/${pname}";
+    tag = "latest";
+    config = { };
+    copyToRoot = [ ];
+    entrypoint = [ "${bin}/bin/${pname}" ];
+  }
+  // (if builtins.isAttrs docker then docker else { });
+in
+assert pkgs.lib.assertMsg (
+  !(library && wantsImage)
+) "${where}: `docker` is set, but this is a library (no binary to run). Remove `docker` or set `library = false`.";
+pkgs.lib.optionalAttrs (!library && docker != false) {
+  dockerImage = pkgs.dockerTools.buildImage {
+    inherit (opts) name tag;
+    created = "now"; # breaks bit-for-bit reproducibility, but avoids epoch timestamps
+    copyToRoot = [ bin ] ++ opts.copyToRoot;
+    config = {
+      Entrypoint = opts.entrypoint;
+      User = "7337:7337"; # do not run as root
+      Env = [ ];
+    }
+    // opts.config;
+  };
+}

@@ -1,0 +1,25 @@
+default:
+  just --list
+
+# Format everything per treefmt.toml
+fmt:
+  treefmt
+
+run *ARGS:
+  go run {{justfile_directory()}} {{ARGS}}
+
+test:
+  go test {{justfile_directory()}}/...
+
+lint:
+  golangci-lint run {{justfile_directory()}}/...
+
+# Reproducible build -> result/bin/<name>
+build:
+  nix build .#default
+
+build-docker:
+  nix build .#dockerImage
+
+dive-inspect:
+  gunzip --stdout result > /tmp/image.tar && dive docker-archive:///tmp/image.tar

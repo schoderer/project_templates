@@ -1,0 +1,20 @@
+# `nix fmt` (or `treefmt` in the devShell) formats the project;
+# `nix flake check` fails on unformatted files. The lib supplies nixfmt, taplo
+# and rustfmt; add `formatters = pkgs: [ … ];` in flake.nix for anything else.
+
+# Don't warn about files no formatter claims (justfile, .gitignore, …).
+on-unmatched = "debug"
+
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+
+[formatter.rust]
+command = "rustfmt"
+options = ["--edition", "2024"]
+includes = ["*.rs"]
+
+[formatter.toml]
+command = "taplo"
+options = ["format"]
+includes = ["*.toml"]
