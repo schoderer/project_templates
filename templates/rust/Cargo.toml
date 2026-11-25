@@ -1,16 +1,15 @@
 [package]
 name = "app"
-edition = "2024"
-resolver = "3"
 version = "0.0.1"
+edition = "2024"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
 
+# `just perf`: release optimisations with debug symbols for profiling.
 [profile.perf]
 inherits = "release"
 lto = "fat"
 panic = "abort"
 codegen-units = 1
 debug = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[dependencies]

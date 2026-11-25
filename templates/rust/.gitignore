@@ -1,6 +1,13 @@
-/target
+# nix / direnv
 .direnv/
 result*
-result/
-.devenv*
+
+# cargo
+/target
+
+# perf (`just perf`)
+perf.data*
+
+# editors
 .idea/
+.vscode/

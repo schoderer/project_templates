@@ -14,12 +14,9 @@
     { project-templates, ... }:
     project-templates.lib.rust.mkFlake {
       src = ./.;
-      # Docker image as packages.dockerImage; set to false to drop it.
-      # Options: name, tag, config (merged into the image config), copyToRoot, entrypoint.
-      docker = { };
-      # Extra `nix flake check` gates:
-      # clippy = true;
-      # fmt = true;
+      docker = { }; # packages.dockerImage; false to drop it, options in the lib's Readme
+      # `nix flake check` runs cargo test, clippy (--deny warnings) and treefmt;
+      # turn the first two off with `test = false;` / `lint = false;`.
       # Native libraries beyond the defaults (pkg-config / openssl):
       # buildInputs = pkgs: [ pkgs.sqlite ];
     };

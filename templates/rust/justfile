@@ -5,17 +5,25 @@ default:
 fmt:
   treefmt
 
+run *ARGS:
+  cargo run -- {{ARGS}}
 
+test:
+  cargo test
+
+lint:
+  cargo clippy --all-targets -- --deny warnings
+
+# Reproducible build -> result/bin/<name>
 build:
   nix build .#default
-
-perf:
-  perf record --call-graph dwarf cargo run --profile perf # Debugsymbols need to be included
-perf-report:
-  perf report -g
 
 build-docker:
   nix build .#dockerImage
 
-dive-inspect:
-  gunzip --stdout result > /tmp/image.tar && dive docker-archive:///tmp/image.tar
+# Profile with perf (the `perf` profile in Cargo.toml keeps debug symbols)
+perf:
+  perf record --call-graph dwarf cargo run --profile perf
+
+perf-report:
+  perf report -g

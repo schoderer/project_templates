@@ -15,9 +15,7 @@
     project-templates.lib.python.mkFlake {
       src = ./.;
       # Builds from uv.lock: after `uv add`/`uv lock` there is nothing to update here.
-      # Docker image as packages.dockerImage; set to false to drop it.
-      # Options: name, tag, config (merged into the image config), copyToRoot, entrypoint.
-      docker = { };
+      docker = { }; # packages.dockerImage; false to drop it, options in the lib's Readme
       # `nix flake check` runs pytest and ruff check; this adds ty:
       typecheck = true;
       # Interpreter (must satisfy requires-python), default nixpkgs python3:

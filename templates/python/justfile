@@ -5,10 +5,6 @@ default:
 fmt:
   treefmt
 
-# Create/refresh .venv from uv.lock
-sync:
-  uv sync
-
 run *ARGS:
   uv run app {{ARGS}}
 
@@ -28,5 +24,6 @@ build:
 build-docker:
   nix build .#dockerImage
 
-dive-inspect:
-  gunzip --stdout result > /tmp/image.tar && dive docker-archive:///tmp/image.tar
+# Create/refresh .venv from uv.lock
+sync:
+  uv sync

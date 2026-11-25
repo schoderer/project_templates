@@ -5,62 +5,50 @@
 #
 # Same contract as nix/rust.nix and nix/go.nix. `mkFlake` (in ../flake.nix)
 # wraps it for every system and turns it into flake outputs.
+# Options are documented in ../Readme.md (common table + language section).
 {
   pyproject-nix,
   uv2nix,
   pyproject-build-systems,
 }:
+let
+  project = import ./project.nix;
+in
 {
   mkProject =
     {
       pkgs,
-      # Project root with pyproject.toml and uv.lock.
-      src,
-      # Everything below that references packages may also be a function
-      # `pkgs -> value`, which is how mkFlake users (who have no per-system pkgs)
-      # reference them: python = pkgs: pkgs.python313;
-      #
-      # Interpreter; must satisfy `requires-python`. Default: nixpkgs python3.
-      python ? null,
-      # "wheel" (prefer prebuilt wheels) or "sdist" (build from source).
+      src, # with pyproject.toml and uv.lock
+      python ? null, # null: nixpkgs python3
       sourcePreference ? "wheel",
-      # `pkgs: final: prev: { … }`: an overlay on the uv2nix package set for
-      # dependencies that need build fixes (extra nativeBuildInputs, patches, …).
-      # Always takes pkgs first (an overlay is a function itself, so the
-      # `pkgs -> value` convention would be ambiguous here).
+      # `pkgs: final: prev: { … }`. Always takes pkgs first: an overlay is a
+      # function itself, so the `pkgs -> value` convention would be ambiguous.
       pythonOverrides ? (
         _pkgs: _final: _prev:
         { }
       ),
-      # null: auto-detect. A project without [project.scripts] is a library (no
-      # packages, no docker).
-      library ? null,
-      # null/true (defaults), false, or { name, tag, config, copyToRoot, entrypoint }.
-      # Binaries only; see ./docker.nix.
+      library ? null, # null: auto-detect (no [project.scripts])
       docker ? null,
-      # `nix flake check` gates.
-      test ? true, # pytest (from the `dev` dependency group)
+      test ? true, # pytest
       lint ? true, # ruff check
-      typecheck ? false, # ty check (pre-1.0, so opt-in)
+      typecheck ? false, # ty (pre-1.0, so opt-in)
       extraChecks ? { },
-      # devShell-only tools added to python, uv, ruff, ty.
       devPackages ? [ ],
-      # Extra programs for formatters you add to treefmt.toml (ruff, nixfmt and
-      # taplo are always there).
       formatters ? [ ],
     }:
     let
       inherit (pkgs) lib;
-      resolve = v: if builtins.isFunction v then v pkgs else v;
+      resolve = project.resolve pkgs;
 
       python' = if python != null then resolve python else pkgs.python3;
+      src' = project.filterSource pkgs src;
 
       pyproject = builtins.fromTOML (builtins.readFile (src + "/pyproject.toml"));
       pname = pyproject.project.name;
       attrName = pyproject-nix.lib.pypa.normalizePackageName pname;
       scripts = pyproject.project.scripts or { };
       isLibrary = if library != null then library else scripts == { };
-      # Entrypoint for docker: the script named like the project, else the first one.
+      # The script named like the project, else the first one (docker entrypoint, `nix run`).
       mainProgram =
         if scripts ? ${pname} then
           pname
@@ -69,7 +57,7 @@
         else
           pname;
 
-      workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = src; };
+      workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = src'; };
       pythonSet = (pkgs.callPackage pyproject-nix.build.packages { python = python'; }).overrideScope (
         lib.composeManyExtensions [
           pyproject-build-systems.overlays.${sourcePreference}
@@ -83,95 +71,69 @@
       testVenv = pythonSet.mkVirtualEnv "${pname}-test-env" workspace.deps.all;
 
       # Only the project's scripts, without the venv around them.
-      bin = (pkgs.callPackages pyproject-nix.build.util { }).mkApplication {
+      app = (pkgs.callPackages pyproject-nix.build.util { }).mkApplication {
         inherit venv;
         package = pythonSet.${attrName};
       };
-
-      # Run `cmd` in a writable copy of the project as a check.
-      pyCheck =
-        name: inputs: cmd:
-        pkgs.runCommand "${pname}-${name}" { nativeBuildInputs = inputs; } ''
-          cp -r ${src} project
-          chmod -R u+w project
-          cd project
-          export HOME=$TMPDIR
-          ${cmd}
-          touch $out
-        '';
-
-      treefmt = import ./treefmt.nix {
-        inherit pkgs src;
-        formatters = [
-          pkgs.ruff # ruff format
-          pkgs.nixfmt
-          pkgs.taplo
-        ]
-        ++ resolve formatters;
+      bin = app // {
+        meta = (app.meta or { }) // {
+          inherit mainProgram;
+        };
       };
 
-      docker' = import ./docker.nix {
-        inherit
-          pkgs
-          bin
-          pname
-          mainProgram
-          ;
-        docker = resolve docker;
-        library = isLibrary;
-      };
+      check = project.runInSource pkgs src';
     in
-    {
-      # A library has no scripts to ship, so it gets no packages (`nix build`
-      # errors clearly instead of producing a bare venv).
-      packages =
-        lib.optionalAttrs (!isLibrary) {
-          inherit bin;
-          default = bin;
+    project.mkOutputs {
+      inherit
+        pkgs
+        pname
+        mainProgram
+        bin
+        docker
+        extraChecks
+        isLibrary
+        ;
+      src = src';
+      buildCheck = if isLibrary then venv else bin;
+      formatters = [ pkgs.ruff ] ++ resolve formatters; # ruff format
+
+      checks =
+        lib.optionalAttrs test {
+          test = check "${pname}-test" [ testVenv ] "pytest -p no:cacheprovider";
         }
-        // docker';
-
-      checks = {
-        ${if isLibrary then "build" else "bin"} = if isLibrary then venv else bin;
-      }
-      // lib.optionalAttrs test {
-        test = pyCheck "test" [ testVenv ] "pytest -p no:cacheprovider";
-      }
-      // lib.optionalAttrs lint {
-        lint = pyCheck "lint" [ pkgs.ruff ] "ruff check --no-cache";
-      }
-      // lib.optionalAttrs typecheck {
-        typecheck = pyCheck "typecheck" [ pkgs.ty ] "ty check --python ${testVenv}";
-      }
-      // treefmt.checks
-      // resolve extraChecks;
-
-      inherit (treefmt) formatter;
+        // lib.optionalAttrs lint {
+          lint = check "${pname}-lint" [ pkgs.ruff ] "ruff check --no-cache";
+        }
+        // lib.optionalAttrs typecheck {
+          typecheck = check "${pname}-typecheck" [ pkgs.ty ] "ty check --python ${testVenv}";
+        };
 
       # Plain uv workflow: `uv sync` manages .venv with the Nix interpreter.
-      devShell = pkgs.mkShell {
-        packages = [
-          python'
-          pkgs.uv
-          pkgs.ruff
-          pkgs.ty
-          treefmt.formatter
-        ]
-        ++ resolve devPackages;
-        env = {
-          UV_PYTHON = python'.interpreter;
-          UV_PYTHON_DOWNLOADS = "never";
-        }
-        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-          # manylinux wheels (numpy, …) expect these at runtime.
-          LD_LIBRARY_PATH = lib.makeLibraryPath [
-            pkgs.stdenv.cc.cc.lib
-            pkgs.zlib
-          ];
+      devShell =
+        formatter:
+        pkgs.mkShell {
+          packages = [
+            python'
+            pkgs.uv
+            pkgs.ruff
+            pkgs.ty
+            formatter
+          ]
+          ++ resolve devPackages;
+          env = {
+            UV_PYTHON = python'.interpreter;
+            UV_PYTHON_DOWNLOADS = "never";
+          }
+          // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            # manylinux wheels (numpy, …) expect these at runtime.
+            LD_LIBRARY_PATH = lib.makeLibraryPath [
+              pkgs.stdenv.cc.cc.lib
+              pkgs.zlib
+            ];
+          };
+          shellHook = ''
+            unset PYTHONPATH
+          '';
         };
-        shellHook = ''
-          unset PYTHONPATH
-        '';
-      };
     };
 }

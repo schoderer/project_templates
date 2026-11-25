@@ -66,17 +66,49 @@ formatters = pkgs: [ pkgs.mdformat ];
 `checks.treefmt` only exists when the project has a `treefmt.toml`. To adopt it in an existing project, copy
 one from `templates/<lang>/`.
 
+## Common options and outputs
+
+All three libs share one shape: `lib.<lang>.mkFlake { src = ./.; … }` returns `packages`, `checks`,
+`devShells.default` and `formatter` for every system, and `lib.<lang>.mkProject { pkgs, src, … }` takes the same
+options for a single system and returns `{ packages, checks, devShell, formatter }` (useful inside a monorepo
+flake). Options that reference packages can be written as functions of `pkgs` (`buildInputs = pkgs: [ … ];`).
+
+| Option        | Default                              | Meaning |
+|---------------|--------------------------------------|---------|
+| `src`         | required                             | project root, usually `./.` |
+| `systems`     | x86_64/aarch64 linux, aarch64-darwin | `mkFlake` only |
+| `library`     | auto-detected (Rust, Python); `false` (Go) | `true`: no packages, no Docker image, build check named `build` |
+| `docker`      | on for binaries                      | `false`, `true`, or `{ name ? "ghcr.io/schoderer/<pname>", tag ? "latest", config ? { }, copyToRoot ? [ ], entrypoint ? [ "<bin>/bin/<program>" ] }` (or `pkgs: { … }`); ignored for libraries |
+| `test`, `lint` | `true`, `true`                      | the language's tests and standard linter (see each language) |
+| `extraChecks` | `{ }`                                | more checks; attrset or `pkgs: attrset` |
+| `devPackages` | `[ ]`                                | extra devShell tools; list or `pkgs: list` |
+| `formatters`  | `[ ]`                                | extra programs for your `treefmt.toml` entries; list or `pkgs: list` |
+
+| Output                     | Content |
+|----------------------------|---------|
+| `packages.default` / `bin` | the program (`nix run` works); not for libraries |
+| `packages.dockerImage`     | `dockerTools.buildImage` with the program as entrypoint, runs as user `7337:7337`; Linux only, not for libraries |
+| `checks.bin`               | the build (`checks.build` for libraries) |
+| `checks.test` / `checks.lint` | tests / linter, see each language |
+| `checks.treefmt`           | formatting, when the project has a `treefmt.toml` |
+| `formatter`                | `nix fmt`: treefmt with nixfmt, taplo, the language's formatter and `formatters` |
+| `devShells.default`        | toolchain, language tools and `treefmt`, see each language |
+
+Build inputs and the source are filtered: `target/`, `.venv`, `node_modules`, `.direnv`, `result*`, VCS and
+Python cache dirs never reach a build or check, so `path:` flakes (jj) don't copy them or rebuild when they change.
+
 ## Rust
 
 ### New project
 
 ```bash
 nix flake new my-app -t git+ssh://git@github.com/schoderer/project_templates#rust && cd my-app
-# rename `name = "app"` in Cargo.toml (and the title in Readme.md)
+# rename `app`: `name` in Cargo.toml, `description` in flake.nix, the title in Readme.md
 direnv allow              # or: nix develop
+cargo check               # updates Cargo.lock to the new name
 nix build                 # binary        -> result/bin/my-app
 nix build .#dockerImage   # docker image  -> result (tar.gz), `docker load < result`
-nix flake check           # build + cargo test
+nix flake check           # build + cargo test + clippy + formatting
 just                      # list recipes
 ```
 
@@ -141,40 +173,26 @@ With options:
         copyToRoot = [ pkgs.cacert ];
       };
 
-      clippy = true;   # cargo clippy --all-targets -- --deny warnings
+      lint = false;     # clippy, on by default
     };
 }
 ```
 
-### Outputs
+### Specifics
 
-| Output                       | Content                                                  |
-|------------------------------|----------------------------------------------------------|
-| `packages.default` / `bin`   | the binary, built with [crane] (dependencies cached separately); not for libraries |
-| `packages.dockerImage`       | `dockerTools.buildImage`, runs as user `7337:7337` (unless `docker = false`); not for libraries |
-| `checks.bin` / `checks.test` | build + `cargo test`, plus `clippy` / `fmt` when enabled (`checks.build` for libraries) |
-| `checks.treefmt`             | formatting, when `treefmt.toml` exists |
-| `formatter`                  | `nix fmt`: treefmt with rustfmt, nixfmt, taplo (+ `formatters`) |
-| `devShells.default`          | toolchain incl. rust-analyzer, clippy, rustfmt, plus `bacon`, `treefmt` and the build inputs |
-
-### Options (`mkFlake` / `mkProject`)
+- `bin`: built with [crane], dependencies cached in a separate derivation.
+- `test` = `cargo test`, `lint` = `cargo clippy --all-targets -- --deny warnings`.
+- devShell: the toolchain (rust-analyzer, clippy, rustfmt), `bacon`, the build inputs.
+- formatter: rustfmt from the project's toolchain, so it matches `cargo fmt`.
 
 | Option              | Default                         | Meaning |
 |---------------------|---------------------------------|---------|
-| `src`               | required                        | crate root (usually `./.`) |
-| `systems`           | x86_64/aarch64 linux, aarch64-darwin | `mkFlake` only |
-| `library`           | auto-detected                   | `true`: no packages, no docker (see [Turning it into a library](#turning-it-into-a-library)) |
 | `toolchain`         | `rust-toolchain.toml` if present, else stable latest | or `pkgs: pkgs.rust-bin.nightly.latest.default` |
 | `nativeBuildInputs` | `[ ]` (added to `pkg-config`)   | list or `pkgs: list` |
 | `buildInputs`       | `[ ]` (added to `openssl`)      | list or `pkgs: list` |
 | `craneArgs`         | `{ }`                           | merged into crane's args (`pname`, env vars, `cargoExtraArgs`, …); attrset or `pkgs: attrset` |
-| `docker`            | on for binaries                 | `false`, `true`, or `{ name ? "ghcr.io/schoderer/<pname>", tag ? "latest", config ? {}, copyToRoot ? [], entrypoint ? [ "<bin>/bin/<pname>" ] }` (or `pkgs: { … }`) |
-| `clippy`, `fmt`     | `false`                         | extra checks (`fmt` = `cargo fmt --check`, redundant with treefmt) |
-| `extraChecks`       | `{ }`                           | attrset or `pkgs: attrset` |
-| `formatters`        | `[ ]`                           | extra programs for `treefmt.toml`; list or `pkgs: list` |
 
-`lib.rust.mkProject { pkgs, src, … }` takes the same options for a single system and returns
-`{ packages, checks, devShell }`, which is useful inside a monorepo flake.
+Library detection: no `src/main.rs`, `src/bin/` or `[[bin]]` (workspaces always count as binaries).
 
 [crane]: https://github.com/ipetkov/crane
 
@@ -184,11 +202,11 @@ With options:
 
 ```bash
 nix flake new my-app -t git+ssh://git@github.com/schoderer/project_templates#go && cd my-app
-# rename `module app` in go.mod (and the title in Readme.md)
+# rename `app`: `module` in go.mod, `description` in flake.nix, the title in Readme.md
 direnv allow              # or: nix develop
 nix build                 # binary        -> result/bin/my-app
 nix build .#dockerImage   # docker image  -> result (tar.gz), `docker load < result`
-nix flake check           # build + go test + go vet
+nix flake check           # build + go test + go vet + formatting
 just                      # list recipes
 ```
 
@@ -231,7 +249,7 @@ Add a `flake.nix` next to `go.mod`:
       src = ./.;
       vendorHash = "sha256-…";
       subPackages = [ "cmd/server" ];   # only build these main packages
-      lint = true;                      # golangci-lint
+      golangciLint = true;              # golangci-lint
       docker = pkgs: {
         config.ExposedPorts."8080/tcp" = { };
         copyToRoot = [ pkgs.cacert ];   # TLS roots for outgoing HTTPS
@@ -240,25 +258,16 @@ Add a `flake.nix` next to `go.mod`:
 }
 ```
 
-### Outputs
+### Specifics
 
-| Output                     | Content                                                     |
-|----------------------------|-------------------------------------------------------------|
-| `packages.default` / `bin` | `buildGoModule`, static (`CGO_ENABLED=0`), stripped (`-s -w`); not for libraries |
-| `packages.dockerImage`     | `dockerTools.buildImage`, runs as user `7337:7337` (unless `docker = false`); not for libraries |
-| `checks.bin`               | build + `go test ./...` (runs in the build's check phase; `checks.build` for libraries) |
-| `checks.vet` / `checks.lint` | `go vet ./...` (on by default) / `golangci-lint run ./...` (`lint = true`) |
-| `checks.treefmt`           | formatting, when `treefmt.toml` exists |
-| `formatter`                | `nix fmt`: treefmt with gofmt, nixfmt, taplo (+ `formatters`) |
-| `devShells.default`        | go, gopls, delve, golangci-lint, `treefmt`, plus the build inputs |
-
-### Options (`mkFlake` / `mkProject`)
+- `bin`: `buildGoModule`, static (`CGO_ENABLED=0`), stripped (`-s -w`). Named after the last element of the
+  module path.
+- `test` = `go test ./...` (runs in the build's check phase, so it's part of `checks.bin`), `lint` = `go vet ./...`,
+  plus `checks.golangci-lint` with `golangciLint = true`.
+- devShell: go, gopls, delve, golangci-lint, the build inputs.
 
 | Option              | Default                         | Meaning |
 |---------------------|---------------------------------|---------|
-| `src`               | required                        | module root (usually `./.`) |
-| `systems`           | x86_64/aarch64 linux, aarch64-darwin | `mkFlake` only |
-| `library`           | `false`                         | `true` for a package without `main`: no packages, no docker |
 | `vendorHash`        | `null`                          | dependency hash, see above |
 | `pname`             | last element of the `module` path | binary/package name |
 | `version`           | `"0.0.1"`                       | |
@@ -268,14 +277,7 @@ Add a `flake.nix` next to `go.mod`:
 | `go`                | nixpkgs `go`                    | `pkgs: pkgs.go_1_26` to pin |
 | `nativeBuildInputs`, `buildInputs` | `[ ]`            | list or `pkgs: list` |
 | `goArgs`            | `{ }`                           | merged into `buildGoModule` args (`tags`, `env`, …); attrset or `pkgs: attrset` |
-| `docker`            | on for binaries                 | same as Rust: `false`, `true`, or `{ name, tag, config, copyToRoot, entrypoint }` (or `pkgs: { … }`) |
-| `vet`, `lint`       | `true`, `false`                 | extra checks |
-| `extraChecks`       | `{ }`                           | attrset or `pkgs: attrset` |
-| `devPackages`       | `[ ]`                           | extra devShell tools; list or `pkgs: list` |
-| `formatters`        | `[ ]`                           | extra programs for `treefmt.toml`; list or `pkgs: list` |
-
-`lib.go.mkProject { pkgs, src, … }` takes the same options for a single system and returns
-`{ packages, checks, devShell }`.
+| `golangciLint`      | `false`                         | golangci-lint check |
 
 ## Python
 
@@ -286,7 +288,8 @@ there is no hash to maintain in `flake.nix`. The devShell is a plain uv workflow
 
 ```bash
 nix flake new my-app -t git+ssh://git@github.com/schoderer/project_templates#python && cd my-app
-# rename `app`: pyproject.toml `name` + `[project.scripts]`, the src/app dir, the import in tests/
+# rename `app`: pyproject.toml `name` + `[project.scripts]`, the src/app dir, the import in tests/,
+# the `run` recipe in the justfile, `description` in flake.nix, the title in Readme.md
 uv lock                   # re-resolve under the new name
 direnv allow              # or: nix develop
 uv sync                   # .venv for your editor
@@ -346,37 +349,23 @@ Needs a `uv.lock`, a `[build-system]` and, for an app, `[project.scripts]`:
 }
 ```
 
-### Outputs
+### Specifics
 
-| Output                     | Content                                                     |
-|----------------------------|-------------------------------------------------------------|
-| `packages.default` / `bin` | the project's scripts only (`mkApplication` over the uv2nix venv); not for libraries |
-| `packages.dockerImage`     | `dockerTools.buildImage`, runs as user `7337:7337`, entrypoint = the script named like the project (else the first); not for libraries |
-| `checks.bin`               | the build (`checks.build`, the venv, for libraries)         |
-| `checks.test`              | `pytest` with all dependency groups installed               |
-| `checks.lint` / `checks.typecheck` | `ruff check` (on by default) / `ty check` against the test venv (`typecheck = true`) |
-| `checks.treefmt`           | formatting, when `treefmt.toml` exists                      |
-| `formatter`                | `nix fmt`: treefmt with ruff, nixfmt, taplo (+ `formatters`) |
-| `devShells.default`        | python, uv, ruff, ty, `treefmt`; `UV_PYTHON` points at the Nix python, downloads are off, and on Linux `LD_LIBRARY_PATH` covers manylinux wheels |
-
-### Options (`mkFlake` / `mkProject`)
+- `bin`: only the project's scripts (`mkApplication` over the uv2nix venv); the Docker entrypoint and `nix run`
+  use the script named like the project, else the first one. For libraries, `checks.build` is the venv.
+- `test` = `pytest` with all dependency groups installed, `lint` = `ruff check`, plus `checks.typecheck`
+  (`ty check` against the test venv) with `typecheck = true`.
+- devShell: python, uv, ruff, ty. `UV_PYTHON` points at the Nix python, downloads are off, and on Linux
+  `LD_LIBRARY_PATH` covers manylinux wheels.
 
 | Option              | Default                         | Meaning |
 |---------------------|---------------------------------|---------|
-| `src`               | required                        | project root with `pyproject.toml` and `uv.lock` |
-| `systems`           | x86_64/aarch64 linux, aarch64-darwin | `mkFlake` only |
 | `python`            | nixpkgs `python3`               | `pkgs: pkgs.python313`; must satisfy `requires-python` |
 | `sourcePreference`  | `"wheel"`                       | or `"sdist"` to build everything from source |
 | `pythonOverrides`   | none                            | `pkgs: final: prev: { … }`, an overlay on the uv2nix package set |
-| `library`           | auto-detected                   | `true`: no packages, no docker |
-| `docker`            | on for apps                     | same as Rust: `false`, `true`, or `{ name, tag, config, copyToRoot, entrypoint }` (or `pkgs: { … }`) |
-| `test`, `lint`, `typecheck` | `true`, `true`, `false` | pytest, ruff check, ty |
-| `extraChecks`       | `{ }`                           | attrset or `pkgs: attrset` |
-| `devPackages`       | `[ ]`                           | extra devShell tools; list or `pkgs: list` |
-| `formatters`        | `[ ]`                           | extra programs for `treefmt.toml`; list or `pkgs: list` |
+| `typecheck`         | `false`                         | ty check |
 
-`lib.python.mkProject { pkgs, src, … }` takes the same options for a single system and returns
-`{ packages, checks, devShell, formatter }`.
+Library detection: no `[project.scripts]` in `pyproject.toml`.
 
 [uv2nix]: https://github.com/pyproject-nix/uv2nix
 
@@ -390,6 +379,6 @@ cookiecutter git@github.com:schoderer/project_templates.git --directory="old/eli
 cookiecutter git@github.com:schoderer/project_templates.git --directory="old/rust_esp32_riscv_embassy/rust_esp32_embassy"
 ```
 
-Available in `old/`: `bevy`, `deno`, `elixir`, `elm`, `empty`, `gm-campaign`, `godot`, `java_maven`, `mono`, `node`,
-`python_ai`, `rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`, and `go`, `python`
-and `rust` (superseded by the flake templates above).
+Available in `old/`: `bevy`, `deno`, `elixir`, `elm`, `gm-campaign`, `godot`, `java_maven`, `mono`, `node`,
+`python_ai`, `rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`. Rust, Go and Python
+are covered by the flake templates above.

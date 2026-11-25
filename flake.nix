@@ -39,13 +39,13 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       crane,
       rust-overlay,
       pyproject-nix,
       uv2nix,
       pyproject-build-systems,
+      ...
     }:
     let
       inherit (nixpkgs) lib;
@@ -77,117 +77,42 @@
           formatter = lib.mapAttrs (_: p: p.formatter) perSystem;
         };
 
-      rust = import ./nix/rust.nix { inherit crane rust-overlay; };
-      go = import ./nix/go.nix { };
-      python = import ./nix/python.nix { inherit pyproject-nix uv2nix pyproject-build-systems; };
+      langs = {
+        rust = import ./nix/rust.nix { inherit crane rust-overlay; };
+        go = import ./nix/go.nix;
+        python = import ./nix/python.nix { inherit pyproject-nix uv2nix pyproject-build-systems; };
+      };
 
-      # Self-test helper: a template's checks (+ docker image on Linux), prefixed.
+      templates = import ./nix/templates.nix;
+      templatePath = name: ./templates + "/${name}";
+
+      # Self-test: a template built through its lib, all checks (+ the docker
+      # image, which only exists on Linux) prefixed with `<name>-template-`.
       templateChecks =
-        pkgs: prefix: project:
-        lib.mapAttrs' (n: v: lib.nameValuePair "${prefix}-template-${n}" v) (
+        pkgs: name: t:
+        let
+          project = langs.${t.lang}.mkProject (
+            {
+              inherit pkgs;
+              src = templatePath name;
+            }
+            // t.selfTest
+          );
+        in
+        lib.mapAttrs' (n: v: lib.nameValuePair "${name}-template-${n}" v) (
           project.checks
-          // lib.optionalAttrs (pkgs.stdenv.hostPlatform.isLinux && project.packages ? dockerImage) {
-            inherit (project.packages) dockerImage;
-          }
+          // lib.optionalAttrs (project.packages ? dockerImage) { inherit (project.packages) dockerImage; }
         );
     in
     {
-      lib = {
-        rust = rust // {
-          mkFlake = mkFlakeFor rust.mkProject;
-        };
-        go = go // {
-          mkFlake = mkFlakeFor go.mkProject;
-        };
-        python = python // {
-          mkFlake = mkFlakeFor python.mkProject;
-        };
-      };
+      lib = lib.mapAttrs (_: l: l // { mkFlake = mkFlakeFor l.mkProject; }) langs;
 
-      templates = {
-        rust = {
-          path = ./templates/rust;
-          description = "Rust binary: crane build, cargo test check, docker image, devShell";
-          welcomeText = ''
-            # Rust project
+      templates = lib.mapAttrs (name: t: {
+        path = templatePath name;
+        inherit (t) description welcomeText;
+      }) templates;
 
-            Rename `name = "app"` in Cargo.toml (and `# app` in Readme.md), then:
-
-                direnv allow             # or: nix develop
-                nix build                # binary  -> result/bin/<name>
-                nix build .#dockerImage  # docker image (set `docker = false;` in flake.nix to drop it)
-                nix flake check          # build + cargo test
-                just                     # list recipes
-          '';
-        };
-
-        go = {
-          path = ./templates/go;
-          description = "Go binary: buildGoModule, go test + go vet checks, docker image, devShell";
-          welcomeText = ''
-            # Go project
-
-            Rename `module app` in go.mod (and `# app` in Readme.md), then:
-
-                direnv allow             # or: nix develop
-                nix build                # binary  -> result/bin/<name>
-                nix build .#dockerImage  # docker image (set `docker = false;` in flake.nix to drop it)
-                nix flake check          # build + go test + go vet
-                just                     # list recipes
-
-            After adding a dependency, set `vendorHash = "";` in flake.nix
-            and copy the real hash from the `nix build` error.
-          '';
-        };
-
-        python = {
-          path = ./templates/python;
-          description = "Python app: uv2nix build from uv.lock, pytest + ruff + ty checks, docker image, devShell";
-          welcomeText = ''
-            # Python project
-
-            Rename the project from `app` (pyproject.toml `name` + `[project.scripts]`,
-            the `src/app` directory, the import in tests/, Readme.md), then:
-
-                uv lock                  # re-resolve under the new name
-                direnv allow             # or: nix develop
-                uv sync                  # .venv for your editor
-                nix build                # app    -> result/bin/<script>
-                nix build .#dockerImage  # docker image (set `docker = false;` in flake.nix to drop it)
-                nix flake check          # build + pytest + ruff check + ty + formatting
-                just                     # list recipes
-
-            Dependencies: `uv add <pkg>`. Nix builds from uv.lock, so there is no hash to update.
-          '';
-        };
-      };
-
-      # Self-test: build every template through the lib.
-      checks = forSystems defaultSystems (
-        pkgs:
-        templateChecks pkgs "rust" (
-          rust.mkProject {
-            inherit pkgs;
-            src = ./templates/rust;
-            clippy = true;
-            fmt = true;
-          }
-        )
-        // templateChecks pkgs "go" (
-          go.mkProject {
-            inherit pkgs;
-            src = ./templates/go;
-            lint = true;
-          }
-        )
-        // templateChecks pkgs "python" (
-          python.mkProject {
-            inherit pkgs;
-            src = ./templates/python;
-            typecheck = true;
-          }
-        )
-      );
+      checks = forSystems defaultSystems (pkgs: lib.concatMapAttrs (templateChecks pkgs) templates);
 
       formatter = forSystems defaultSystems (pkgs: pkgs.nixfmt);
     };
