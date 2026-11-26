@@ -1,0 +1,16 @@
+# nix / direnv
+.direnv/
+result*
+
+# node
+node_modules/
+dist/
+*.local
+*.log
+
+# env file
+.env
+
+# editors
+.idea/
+.vscode/

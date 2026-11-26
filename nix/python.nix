@@ -32,6 +32,7 @@ in
       test ? true, # pytest
       lint ? true, # ruff check
       typecheck ? false, # ty (pre-1.0, so opt-in)
+      checkGroups ? null, # dependency groups in the test/typecheck venv; null: all
       extraChecks ? { },
       devPackages ? [ ],
       formatters ? [ ],
@@ -66,9 +67,15 @@ in
         ]
       );
 
-      venv = pythonSet.mkVirtualEnv "${pname}-env" workspace.deps.default;
-      # All dependency groups (incl. `dev` with pytest) for the checks.
-      testVenv = pythonSet.mkVirtualEnv "${pname}-test-env" workspace.deps.all;
+      # Runtime venv: the project without dependency groups. (uv2nix's
+      # deps.default would add [tool.uv] default-groups, e.g. dev tools or a
+      # multi-GB `gpu` group.)
+      venv = pythonSet.mkVirtualEnv "${pname}-env" { ${attrName} = [ ]; };
+      # Dependency groups for the checks (incl. `dev` with pytest): all, or only
+      # `checkGroups` (e.g. to keep a multi-GB `gpu` group with torch out of Nix).
+      testVenv = pythonSet.mkVirtualEnv "${pname}-test-env" (
+        if checkGroups == null then workspace.deps.all else { ${attrName} = checkGroups; }
+      );
 
       # Only the project's scripts, without the venv around them.
       app = (pkgs.callPackages pyproject-nix.build.util { }).mkApplication {

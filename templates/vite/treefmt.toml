@@ -1,0 +1,33 @@
+# `nix fmt` (or `treefmt` in the devShell) formats the project;
+# `nix flake check` fails on unformatted files. The lib supplies biome, nixfmt
+# and taplo; add `formatters = pkgs: [ … ];` in flake.nix for anything else.
+
+# Don't warn about files no formatter claims (justfile, .gitignore, …).
+on-unmatched = "debug"
+
+# npm owns package.json/package-lock.json (left as `npm install` writes them);
+# build output and dependencies are skipped outside git too.
+excludes = ["package.json", "package-lock.json", "node_modules/**", "dist/**"]
+
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+
+[formatter.biome]
+command = "biome"
+options = ["format", "--write", "--no-errors-on-unmatched"]
+includes = [
+  "*.ts",
+  "*.tsx",
+  "*.js",
+  "*.jsx",
+  "*.mjs",
+  "*.json",
+  "*.jsonc",
+  "*.css",
+]
+
+[formatter.toml]
+command = "taplo"
+options = ["format"]
+includes = ["*.toml"]

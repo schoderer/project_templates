@@ -1,0 +1,31 @@
+default:
+  just --list
+
+# Format everything per treefmt.toml
+fmt:
+  treefmt
+
+# Create/refresh .venv from uv.lock (first run downloads the ROCm torch, several GB)
+sync:
+  uv sync
+
+# Run a script or command in the venv, e.g. `just run scripts/train.py`
+run *ARGS:
+  uv run {{ARGS}}
+
+# Versions, visible GPUs and a matmul on each
+gpu-check:
+  uv run scripts/gpu_check.py
+
+test:
+  uv run pytest
+
+lint:
+  ruff check
+
+typecheck:
+  ty check
+
+# Drop cached torch wheels (after a torch bump); existing .venvs keep working
+clean-cache:
+  uv cache clean torch triton-rocm

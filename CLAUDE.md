@@ -1,8 +1,7 @@
 # CLAUDE.md
 
 A library flake (`lib.<lang>.mkProject` / `mkFlake` in `nix/<lang>.nix`) plus `nix flake init` templates
-(`templates/<lang>/`) that consume it as the `project-templates` input. All cookiecutter templates are legacy,
-in `old/`.
+(`templates/<lang>/`) that consume it as the `project-templates` input.
 
 ## Rules
 
@@ -13,14 +12,21 @@ in `old/`.
   treefmt, library rules) live in `nix/project.nix` (`mkOutputs`). Common options: `test`, `lint`, `docker`,
   `library`, `extraChecks`, `devPackages`, `formatters`. Options that
   reference packages must also accept `pkgs -> value`, because `mkFlake` users have no per-system `pkgs`.
-- Libraries (`library`, auto-detected for Rust and Python, explicit for Go) get no packages and no docker (`docker` is
+- Libraries (`library`, auto-detected for Rust, Python and Node (no package.json `"bin"`), explicit for Go) get no packages and no docker (`docker` is
   ignored), and their build check is `build`, not `bin`.
 - Templates are copied verbatim: no Jinja, no variables. Names come from project metadata (`Cargo.toml`,
-  `go.mod`, `pyproject.toml`) with an `app` placeholder that the `welcomeText` tells the user to rename.
+  `go.mod`, `pyproject.toml`, `package.json`) with an `app` placeholder that the `welcomeText` tells the user to rename.
 - Formatting: each template owns a `treefmt.toml`, and the lib only supplies the programs it
   references (+ `formatters`). A new template's toml must only use programs its lib provides.
 - Python: `pythonOverrides` is `pkgs: final: prev:` (not via `resolve`, since an overlay is a function itself).
   Its template's taplo options match uv's pyproject.toml style. Keep them, or `uv add` fails the format check.
+- python-torch: torch lives only in the `gpu` dependency group, which only uv installs; Nix never builds it
+  (`checkGroups = [ "dev" ]`, and the runtime venv excludes all groups). torch and the Python minor are pinned
+  in the template on purpose (shared uv cache across projects); bump them only deliberately. Downloading
+  torch needs `download.pytorch.org` and `download-r2.pytorch.org` through the sandbox firewall, and the
+  sandbox disk is too small for a real `uv sync` with torch.
+- Node: checks run the project's npm scripts (`test`, `typecheck`); `kind = "static"` makes `bin` a
+  static-web-server wrapper around `packages.site`. npm owns package.json/package-lock.json: treefmt and biome skip them.
 - Templates ship no CI workflow on purpose: the private input would need an SSH deploy key on the runner.
 - `nix/templates.nix` is the single table of templates (description, welcomeText, `selfTest` options). The root
   `checks` build every template through its lib with all opt-in gates on. Keep it buildable
@@ -30,7 +36,6 @@ in `old/`.
   Applies to the repo, templates and Readme examples.
 - `Readme.md` is the reference for every option and output (shared ones in "Common options and outputs").
   Update it with any lib change; option comments in `nix/*.nix` stay one-line labels.
-- Don't extend `old/`. Port a template to `templates/` instead (drop its `.github/` and Jinja).
 
 ## Adding a template
 

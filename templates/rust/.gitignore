@@ -5,8 +5,8 @@ result*
 # cargo
 /target
 
-# perf (`just perf`)
-perf.data*
+# env file
+.env
 
 # editors
 .idea/

@@ -1,4 +1,4 @@
-# Shared by the language libs (nix/rust.nix, nix/go.nix, nix/python.nix): the
+# Shared by the language libs (nix/rust.nix, go.nix, python.nix, node.nix): the
 # parts every `mkProject` has in common.
 rec {
   # Options that reference packages may be given as `pkgs -> value`, because
@@ -17,6 +17,7 @@ rec {
         "target"
         ".venv"
         "node_modules"
+        "dist"
         ".direnv"
         "__pycache__"
         ".pytest_cache"

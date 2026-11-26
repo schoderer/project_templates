@@ -1,7 +1,0 @@
-/.vscode
-/.idea
-/.embuild
-/target
-/Cargo.lock
-result*
-.direnv/

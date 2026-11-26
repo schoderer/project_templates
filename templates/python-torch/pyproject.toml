@@ -1,0 +1,42 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "Readme.md"
+# Pinned minor: PyTorch wheels are built per Python minor, so every project from
+# this template shares the same torch download (keep in sync with flake.nix).
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest"]
+# GPU torch from the ROCm index. Only uv installs this group; Nix builds and
+# checks leave it out (`checkGroups` in flake.nix).
+# triton-rocm is torch's own dependency, listed here only because
+# [tool.uv.sources] applies to direct dependencies (it must come from the ROCm
+# index too; PyPI only has an ancient version).
+gpu = ["torch==2.14.*", "triton-rocm"]
+
+[tool.uv]
+default-groups = ["dev", "gpu"]
+# ROCm wheels are Linux-only; keeps the lock small.
+environments = ["sys_platform == 'linux'"]
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-rocm" }
+torchvision = { index = "pytorch-rocm" }
+torchaudio = { index = "pytorch-rocm" }
+triton-rocm = { index = "pytorch-rocm" }
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, pyupgrade, bugbear
+select = ["E", "F", "I", "UP", "B"]

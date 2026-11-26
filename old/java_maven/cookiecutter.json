@@ -1,5 +1,0 @@
-{
-  "project_name": "java-template",
-  "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '_') }}",
-  "java_version": "25"
-}

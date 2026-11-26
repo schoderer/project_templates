@@ -1,0 +1,26 @@
+{
+  "files": {
+    "includes": [
+      "**",
+      "!**/package.json",
+      "!**/package-lock.json",
+      "!**/dist",
+      "!**/public"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space"
+  },
+  "linter": {
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

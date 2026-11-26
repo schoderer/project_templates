@@ -1,0 +1,26 @@
+default:
+  just --list
+
+# Format everything per treefmt.toml
+fmt:
+  treefmt
+
+# Vite dev server with hot reload
+run:
+  npm run dev
+
+test:
+  npm test
+
+lint:
+  biome lint
+
+typecheck:
+  npm run typecheck
+
+# Reproducible build -> result/bin/<name> serves the site
+build:
+  nix build .#default
+
+build-docker:
+  nix build .#dockerImage

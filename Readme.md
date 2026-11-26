@@ -9,13 +9,12 @@ reach every project with `nix flake update project-templates`.
 |----------|------------------------|----------------------------|
 | Rust     | `lib.rust.mkFlake`     | `templates.rust`           |
 | Go       | `lib.go.mkFlake`       | `templates.go`             |
-| Python   | `lib.python.mkFlake`   | `templates.python`         |
-| *others* | –                      | cookiecutter in `old/`, see [below](#cookiecutter-templates) |
+| Python   | `lib.python.mkFlake`   | `templates.python`, `templates.python-torch` (PyTorch on AMD GPUs) |
+| TypeScript | `lib.node.mkFlake`   | `templates.node` (Node app), `templates.vite` (Vite + React frontend) |
 
 ## Access (private repo)
 
-This repo is private, so it's fetched over **SSH** (`git+ssh://`), just like
-`cookiecutter git@github.com:…` did. Your normal GitHub SSH key is used. The `github:` shorthand doesn't
+This repo is private, so it's fetched over **SSH** (`git+ssh://`) with your normal GitHub SSH key. The `github:` shorthand doesn't
 work here because it downloads through the GitHub API without credentials and gets a 404.
 
 Nothing to set up if `ssh -T git@github.com` works: Nix runs the git fetch as your user, with your
@@ -49,7 +48,8 @@ unstable, independent of this repo's `flake.lock`. Update only the lib with `nix
 
 Every template ships a `treefmt.toml`, which the project owns. The lib supplies the formatter programs:
 nixfmt and taplo for all projects, plus rustfmt (from the project's toolchain, so it matches `cargo fmt`),
-gofmt (from the project's Go) or `ruff format`. In the Python template, taplo is configured to match the style
+gofmt (from the project's Go), `ruff format` or biome (TS/JS/JSON/CSS; npm-owned `package.json`/`package-lock.json`
+are left alone). In the Python template, taplo is configured to match the style
 `uv add` writes into `pyproject.toml`, so adding a dependency doesn't fail the format check.
 
 ```bash
@@ -77,7 +77,7 @@ flake). Options that reference packages can be written as functions of `pkgs` (`
 |---------------|--------------------------------------|---------|
 | `src`         | required                             | project root, usually `./.` |
 | `systems`     | x86_64/aarch64 linux, aarch64-darwin | `mkFlake` only |
-| `library`     | auto-detected (Rust, Python); `false` (Go) | `true`: no packages, no Docker image, build check named `build` |
+| `library`     | auto-detected (Rust, Python, Node); `false` (Go) | `true`: no packages, no Docker image, build check named `build` |
 | `docker`      | on for binaries                      | `false`, `true`, or `{ name ? "ghcr.io/schoderer/<pname>", tag ? "latest", config ? { }, copyToRoot ? [ ], entrypoint ? [ "<bin>/bin/<program>" ] }` (or `pkgs: { … }`); ignored for libraries |
 | `test`, `lint` | `true`, `true`                      | the language's tests and standard linter (see each language) |
 | `extraChecks` | `{ }`                                | more checks; attrset or `pkgs: attrset` |
@@ -202,7 +202,7 @@ Library detection: no `src/main.rs`, `src/bin/` or `[[bin]]` (workspaces always 
 
 ```bash
 nix flake new my-app -t git+ssh://git@github.com/schoderer/project_templates#go && cd my-app
-# rename `app`: `module` in go.mod, `description` in flake.nix, the title in Readme.md
+# rename `app`: `module` in go.mod, `/app` in .gitignore, `description` in flake.nix, the title in Readme.md
 direnv allow              # or: nix develop
 nix build                 # binary        -> result/bin/my-app
 nix build .#dockerImage   # docker image  -> result (tar.gz), `docker load < result`
@@ -353,7 +353,8 @@ Needs a `uv.lock`, a `[build-system]` and, for an app, `[project.scripts]`:
 
 - `bin`: only the project's scripts (`mkApplication` over the uv2nix venv); the Docker entrypoint and `nix run`
   use the script named like the project, else the first one. For libraries, `checks.build` is the venv.
-- `test` = `pytest` with all dependency groups installed, `lint` = `ruff check`, plus `checks.typecheck`
+  The runtime venv never contains dependency groups (not even `[tool.uv] default-groups`).
+- `test` = `pytest` with all dependency groups installed (or only `checkGroups`), `lint` = `ruff check`, plus `checks.typecheck`
   (`ty check` against the test venv) with `typecheck = true`.
 - devShell: python, uv, ruff, ty. `UV_PYTHON` points at the Nix python, downloads are off, and on Linux
   `LD_LIBRARY_PATH` covers manylinux wheels.
@@ -364,21 +365,124 @@ Needs a `uv.lock`, a `[build-system]` and, for an app, `[project.scripts]`:
 | `sourcePreference`  | `"wheel"`                       | or `"sdist"` to build everything from source |
 | `pythonOverrides`   | none                            | `pkgs: final: prev: { … }`, an overlay on the uv2nix package set |
 | `typecheck`         | `false`                         | ty check |
+| `checkGroups`       | all groups                      | dependency groups in the test/typecheck venv, e.g. `[ "dev" ]` |
 
 Library detection: no `[project.scripts]` in `pyproject.toml`.
 
-[uv2nix]: https://github.com/pyproject-nix/uv2nix
+### PyTorch on AMD GPUs (`#python-torch`)
 
-## Cookiecutter templates
-
-The previous cookiecutter templates live in `old/` and still work, but they aren't developed further:
+For PyTorch scripts on AMD cards, without a ROCm container and without managing ROCm in Nix: PyTorch's ROCm
+wheels bundle the ROCm runtime, so uv installs GPU torch straight into `.venv`. The host only needs the amdgpu
+kernel driver (`/dev/kfd`, `/dev/dri`). On ROCm builds the GPU is the `"cuda"` device, so model code written
+for CUDA runs unchanged.
 
 ```bash
-cookiecutter git@github.com:schoderer/project_templates.git --directory="old/python_ai"
-cookiecutter git@github.com:schoderer/project_templates.git --directory="old/elixir"
-cookiecutter git@github.com:schoderer/project_templates.git --directory="old/rust_esp32_riscv_embassy/rust_esp32_embassy"
+nix flake new my-ml -t git+ssh://git@github.com/schoderer/project_templates#python-torch && cd my-ml
+# rename `app`: pyproject.toml `name`, the src/app dir, the import in tests/, flake.nix description, Readme.md
+uv lock                   # keeps the pinned torch
+direnv allow              # or: nix develop
+uv sync                   # .venv with the ROCm torch (first time: 6+ GB download, shared via the uv cache)
+just gpu-check            # torch/HIP versions, visible GPUs, a matmul on each
+just run scripts/train.py # any script with the GPU torch
 ```
 
-Available in `old/`: `bevy`, `deno`, `elixir`, `elm`, `gm-campaign`, `godot`, `java_maven`, `mono`, `node`,
-`python_ai`, `rust_esp32_riscv_embassy/rust_esp32_embassy`, `rust_godot`, `rust_pico2_embassy`. Rust, Go and Python
-are covered by the flake templates above.
+- **torch stays out of Nix.** It lives in the `gpu` dependency group (installed by `uv sync` via
+  `default-groups`), and the flake sets `checkGroups = [ "dev" ]`. So `nix flake check` runs pytest (torch tests
+  are skipped via `pytest.importorskip`), ruff and treefmt without ever downloading torch. The project is a
+  library (no `[project.scripts]`): no packages, no Docker image. Type checking runs locally (`just typecheck`),
+  where torch is installed.
+- **Pinned, so projects share one download.** torch is locked in the template's `uv.lock` (currently
+  2.14.1+rocm7.2), and the Python minor is pinned in `flake.nix` and `requires-python` (wheels are per minor).
+  New projects keep the template's torch, uv hardlinks it from `~/.cache/uv` into each `.venv`, and a
+  `nix flake update` never changes it.
+- **`triton-rocm`** is listed in the `gpu` group although it's torch's own dependency: `[tool.uv.sources]` only
+  applies to direct dependencies, and it has to come from the ROCm index too (PyPI only has an ancient version).
+  `torchvision`/`torchaudio` are pre-mapped to the ROCm index, so `uv add --group gpu torchvision` just works.
+- **Several GPUs / an iGPU:** pick the card with `HIP_VISIBLE_DEVICES=<index>`.
+- **Upgrading a project:** `uv lock --upgrade-package torch` (within the pin in pyproject.toml).
+- **Bumping the template:** in `templates/python-torch/`, update the `torch==` pin and the index URL
+  (`rocm<X.Y>`, the newest one with wheels for the pinned Python), plus the Python minor in `flake.nix`,
+  `requires-python` and `nix/templates.nix` if needed. Then run `uv lock` and `nix flake check path:.`. If torch
+  renames its triton dependency again, the lock error names the new package.
+- **Cache:** `just clean-cache` (`uv cache clean torch triton-rocm`) after a bump; existing venvs keep working.
+  The uv cache isn't touched by Nix garbage collection.
+
+[uv2nix]: https://github.com/pyproject-nix/uv2nix
+
+## TypeScript / Node
+
+Built from `package-lock.json` with nixpkgs' `importNpmLock`: npm records every dependency's integrity hash in
+the lock, so (like Python) there is no hash to maintain in `flake.nix`. Tooling: npm, vitest, `tsc`, and
+[biome] for lint and format (from nixpkgs, not an npm dependency).
+
+`kind` picks what the project produces:
+- `"app"` (default, `#node`): a Node program from package.json's `"bin"`, `result/bin/<name>`.
+- `"static"` (`#vite`): the build output (`outDir`, default `dist`) as `packages.site`, and `bin` is a small
+  [static-web-server] wrapper serving it (`nix run`, docker), with SPA fallback to `index.html`. `HOST`/`PORT`
+  (default `0.0.0.0:8080`) override the address.
+
+### New project
+
+```bash
+nix flake new my-app -t git+ssh://git@github.com/schoderer/project_templates#node && cd my-app   # or #vite
+# rename `app`: package.json `name` (+ `bin` for #node, `<title>` in index.html for #vite),
+# `description` in flake.nix, the title in Readme.md
+direnv allow              # or: nix develop
+npm install               # node_modules for the editor, refreshes package-lock.json after the rename
+npm run dev               # #node: run from source with --watch; #vite: Vite dev server
+nix build                 # #node: result/bin/my-app; #vite: result/bin/my-app serves the site
+nix build .#dockerImage   # docker image  -> result (tar.gz), `docker load < result`
+nix flake check           # build + vitest + tsc + biome lint + formatting
+just                      # list recipes
+```
+
+`#node` runs TypeScript directly with Node's type stripping in development (`npm run dev`, `just run`) and
+compiles with `tsc -p tsconfig.build.json` for the build. `#vite` is `create-vite`'s react-ts setup with biome
+instead of oxlint, vitest + Testing Library + jsdom, and `typecheck` split out of `build`.
+
+### Dependencies
+
+`npm install <pkg>` (or `--save-dev`). The next `nix build` uses the updated lock.
+
+### Turning it into a library
+
+`#node`: remove `"bin"` from package.json and `docker = { };` from flake.nix. An app without `"bin"` is detected
+as a library. `kind = "static"` is never a library.
+
+### Angular (and other npm projects)
+
+The lib doesn't care about the framework: anything with `package-lock.json` and an npm build script works.
+For Angular, create the project with `ng new my-app`, add a `flake.nix` with
+
+```nix
+project-templates.lib.node.mkFlake {
+  src = ./.;
+  kind = "static";
+  outDir = "dist/my-app/browser";   # Angular's build output
+  docker = { };
+  typecheck = false;                # `ng build` type-checks; there is no `typecheck` script
+  lint = false;                     # keep angular-eslint (`ng lint`) instead of biome
+};
+```
+
+and copy `treefmt.toml` from `templates/vite/` (or drop it). `test` runs `npm test` (`ng test`).
+
+### Specifics
+
+- `test` = `npm test`, `typecheck` = `npm run typecheck` (both with the project's node_modules), `lint` =
+  `biome lint`. So the checks follow your package.json scripts.
+- `pname`/`version` from package.json (a scope like `@me/` is dropped); `nix run` and the docker entrypoint use
+  the bin named like the package, else the first one.
+- devShell: nodejs (npm), biome. Vite, vitest and tsc come from `node_modules`.
+
+| Option        | Default        | Meaning |
+|---------------|----------------|---------|
+| `kind`        | `"app"`        | `"app"` or `"static"` |
+| `outDir`      | `"dist"`       | build output for `kind = "static"` |
+| `buildScript` | `"build"`      | the `npm run` script for the build |
+| `nodejs`      | nixpkgs `nodejs` | `pkgs: pkgs.nodejs_22` to pin |
+| `npmArgs`     | `{ }`          | merged into `buildNpmPackage` args; attrset or `pkgs: attrset` |
+| `typecheck`   | `true`         | `npm run typecheck` |
+
+[biome]: https://biomejs.dev
+[static-web-server]: https://static-web-server.net

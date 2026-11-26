@@ -1,6 +1,6 @@
 # Library flake for project build logic, plus `nix flake init` templates.
 #
-#   nix flake init -t git+ssh://git@github.com/schoderer/project_templates#rust   (or #go, #python)
+#   nix flake init -t git+ssh://git@github.com/schoderer/project_templates#rust   (or #go, #python, #python-torch, #node, #vite)
 #   nix flake check   build + test every template via the lib
 #
 # Projects consume `lib.<lang>.mkFlake` (see templates/<lang>/flake.nix and Readme.md).
@@ -81,6 +81,7 @@
         rust = import ./nix/rust.nix { inherit crane rust-overlay; };
         go = import ./nix/go.nix;
         python = import ./nix/python.nix { inherit pyproject-nix uv2nix pyproject-build-systems; };
+        node = import ./nix/node.nix;
       };
 
       templates = import ./nix/templates.nix;

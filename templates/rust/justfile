@@ -20,10 +20,3 @@ build:
 
 build-docker:
   nix build .#dockerImage
-
-# Profile with perf (the `perf` profile in Cargo.toml keeps debug symbols)
-perf:
-  perf record --call-graph dwarf cargo run --profile perf
-
-perf-report:
-  perf report -g

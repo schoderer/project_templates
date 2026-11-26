@@ -2,7 +2,8 @@
 .direnv/
 result*
 
-# go
+# go (`go build` output, named after the module)
+/app
 *.test
 *.out
 coverage.*

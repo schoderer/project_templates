@@ -1,0 +1,26 @@
+default:
+  just --list
+
+# Format everything per treefmt.toml
+fmt:
+  treefmt
+
+# Run from source (Node strips the types); `npm run dev` restarts on changes
+run *ARGS:
+  node src/index.ts {{ARGS}}
+
+test:
+  npm test
+
+lint:
+  biome lint
+
+typecheck:
+  npm run typecheck
+
+# Reproducible build -> result/bin/<name>
+build:
+  nix build .#default
+
+build-docker:
+  nix build .#dockerImage
